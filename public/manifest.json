@@ -1,0 +1,21 @@
+{
+  "name": "Tinkuy - Dietética Online",
+  "short_name": "Tinkuy",
+  "description": "Productos saludables, frutos secos, semillas y más. Alimentación consciente y natural.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF8F1",
+  "theme_color": "#5A6E3F",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-tinkuy.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "food"],
+  "lang": "es-AR",
+  "dir": "ltr"
+}
