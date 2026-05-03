@@ -74,8 +74,10 @@ module.exports = {
         'fade-in': 'fadeIn 0.5s ease-out',
         'slide-up': 'slideUp 0.5s ease-out',
         'slide-down': 'slideDown 0.3s ease-out',
+        'slide-right': 'slideRight 0.3s ease-out',
         'float': 'float 6s ease-in-out infinite',
         'float-slow': 'float 8s ease-in-out infinite',
+        'scale': 'scale 0.2s ease-out',
       },
       keyframes: {
         fadeIn: {
@@ -90,6 +92,10 @@ module.exports = {
           '0%': { opacity: '0', transform: 'translateY(-10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        slideRight: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
         float: {
           '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
           '50%': { transform: 'translateY(-10px) rotate(3deg)' },
@@ -98,6 +104,19 @@ module.exports = {
           '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
           '50%': { transform: 'translateY(-15px) rotate(-3deg)' },
         },
+        scale: {
+          '0%': { transform: 'scale(0.8)' },
+          '100%': { transform: 'scale(1)' },
+        },
+      },
+      boxShadow: {
+        'card': '0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.05)',
+        'card-hover': '0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 30px rgba(0, 0, 0, 0.1)',
+        'button': '0 2px 4px rgba(0, 0, 0, 0.1)',
+        'button-hover': '0 4px 12px rgba(0, 0, 0, 0.15)',
+      },
+      transitionTimingFunction: {
+        'bounce-in': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
       },
     },
   },
