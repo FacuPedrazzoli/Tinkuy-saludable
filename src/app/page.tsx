@@ -5,7 +5,6 @@ import { FAQSection } from '@/components/FAQSection'
 import { getFeaturedProducts } from '@/data/products'
 import { siteConfig } from '@/data/siteConfig'
 import Link from 'next/link'
-import { MonsteraLeaf, SmallLeaf } from '@/components/LeafDecorations'
 
 const organizationSchema = {
   '@context': 'https://schema.org',
@@ -44,12 +43,9 @@ export default function HomePage() {
       <Hero />
       <CategorySection />
 
-      <section className="py-20 bg-cream-50 relative overflow-hidden">
-        <div className="absolute top-20 left-0 w-48 h-48 bg-primary-500/5 rounded-full -translate-x-1/2" />
-        <div className="absolute bottom-20 right-0 w-64 h-64 bg-secondary-400/5 rounded-full translate-x-1/3" />
-        <SmallLeaf className="absolute top-1/4 right-20 opacity-30 animate-float" />
+      <section className="py-20 bg-cream-50">
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-12">
             <div>
               <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500/10 text-primary-600 rounded-full text-sm font-medium mb-4">

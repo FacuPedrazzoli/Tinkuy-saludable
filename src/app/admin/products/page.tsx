@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { formatPrice, formatStock } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { ImageUploadZone, ImageGallery } from '@/components/admin/ImageUpload'
 
 interface Product {
   id: string
@@ -20,7 +21,13 @@ interface Product {
   brand: string | null
   category_id: string | null
   categories?: { name: string }
-  product_images?: { url: string; is_primary: boolean }[]
+  product_images?: { id: string; url: string; is_primary: boolean }[]
+}
+
+interface ProductImage {
+  url: string
+  id?: string
+  is_primary?: boolean
 }
 
 interface Category {
@@ -49,6 +56,7 @@ const emptyProduct = {
   is_vegan: false,
   is_keto: false,
   weight_options: [100, 250, 500, 1000] as number[],
+  images: [] as ProductImage[],
 }
 
 function SkeletonCard() {
@@ -79,6 +87,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [productImages, setProductImages] = useState<ProductImage[]>([])
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -123,19 +132,51 @@ export default function AdminProductsPage() {
         : '/api/products'
       const method = editingProduct.id ? 'PUT' : 'POST'
 
+      const { images: _, ...productData } = editingProduct
+
+      const dataToSend = {
+        ...productData,
+        category_id: productData.category_id || null,
+        brand: productData.brand || null,
+        original_price: productData.original_price || null,
+        ingredients: productData.ingredients || null,
+      }
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingProduct),
+        body: JSON.stringify(dataToSend),
       })
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Error saving product')
+        const errorMessage = typeof data.error === 'string' ? data.error : 'Error saving product'
+        throw new Error(errorMessage)
+      }
+
+      const savedProduct = await res.json()
+
+      if (editingProduct.id) {
+        for (let i = 0; i < productImages.length; i++) {
+          const img = productImages[i]
+          if (!img.id) {
+            await fetch('/api/products/images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                product_id: editingProduct.id,
+                url: img.url,
+                is_primary: img.is_primary || i === 0,
+                sort_order: i,
+              }),
+            })
+          }
+        }
       }
 
       setShowModal(false)
       setEditingProduct(null)
+      setProductImages([])
       fetchProducts()
     } catch (err: any) {
       alert(err.message)
@@ -177,13 +218,43 @@ export default function AdminProductsPage() {
       is_vegan: false,
       is_keto: false,
       weight_options: [100, 250, 500, 1000],
+      images: [],
     })
+    setProductImages(product.product_images?.map(img => ({
+      url: img.url,
+      id: img.id,
+      is_primary: img.is_primary,
+    })) || [])
     setShowModal(true)
   }
 
   const openNew = () => {
     setEditingProduct({ ...emptyProduct })
+    setProductImages([])
     setShowModal(true)
+  }
+
+  const handleImageUpload = (url: string) => {
+    setProductImages(prev => [...prev, { url, is_primary: prev.length === 0 }])
+  }
+
+  const handleSetPrimary = (url: string) => {
+    setProductImages(prev => prev.map(img => ({
+      ...img,
+      is_primary: img.url === url,
+    })))
+  }
+
+  const handleDeleteImage = async (url: string) => {
+    const image = productImages.find(img => img.url === url)
+    if (image?.id) {
+      try {
+        await fetch(`/api/products/images/${image.id}`, { method: 'DELETE' })
+      } catch (err) {
+        console.error('Error deleting image:', err)
+      }
+    }
+    setProductImages(prev => prev.filter(img => img.url !== url))
   }
 
   const getStockColor = (stock: number) => {
@@ -508,6 +579,17 @@ export default function AdminProductsPage() {
                   />
                   <span className="text-sm font-medium text-neutral-700">Destacado</span>
                 </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">Imágenes del Producto</label>
+                <ImageUploadZone onUploadComplete={handleImageUpload} className="mb-3" />
+                {productImages.length > 0 && (
+                  <ImageGallery
+                    images={productImages}
+                    onSetPrimary={handleSetPrimary}
+                    onDelete={handleDeleteImage}
+                  />
+                )}
               </div>
             </div>
             <div className="p-6 border-t border-neutral-100 flex justify-end gap-3">

@@ -7,8 +7,8 @@ const productSchema = z.object({
   slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/),
   description: z.string().optional(),
   short_description: z.string().optional(),
-  price: z.number().positive(),
-  original_price: z.number().positive().optional(),
+  price: z.number().min(0),
+  original_price: z.number().min(0).optional(),
   category_id: z.string().uuid().optional(),
   brand: z.string().optional(),
   tags: z.array(z.string()).default([]),
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: 201 })
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return NextResponse.json({ error: 'Datos inválidos en el formulario' }, { status: 400 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

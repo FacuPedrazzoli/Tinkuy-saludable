@@ -34,6 +34,13 @@ const createOrderSchema = z.object({
   }),
 })
 
+interface StockCheckResult {
+  productId: string
+  productName: string
+  requested: number
+  available: number
+}
+
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
 
@@ -96,6 +103,53 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const validated = createOrderSchema.parse(body)
+
+    const productIds = validated.items
+      .map(item => item.product_id)
+      .filter((id): id is string => id !== undefined)
+
+    if (productIds.length > 0) {
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, stock')
+        .in('id', productIds)
+
+      if (productsError) {
+        return NextResponse.json(
+          { error: 'Error checking stock', code: 'STOCK_CHECK_ERROR' },
+          { status: 500 }
+        )
+      }
+
+      const stockMap = new Map(products.map(p => [p.id, { name: p.name, stock: p.stock }]))
+
+      const insufficientStock: StockCheckResult[] = []
+
+      for (const item of validated.items) {
+        if (!item.product_id) continue
+
+        const productInfo = stockMap.get(item.product_id)
+        if (!productInfo) continue
+
+        const requestedWeight = item.weight * item.quantity
+        if (requestedWeight > productInfo.stock) {
+          insufficientStock.push({
+            productId: item.product_id,
+            productName: productInfo.name,
+            requested: requestedWeight,
+            available: productInfo.stock,
+          })
+        }
+      }
+
+      if (insufficientStock.length > 0) {
+        return NextResponse.json({
+          error: 'Stock insuficiente',
+          code: 'STOCK_INSUFFICIENT',
+          details: insufficientStock,
+        }, { status: 422 })
+      }
+    }
 
     let customerId: string | null = null
 

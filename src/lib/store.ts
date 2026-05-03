@@ -6,7 +6,7 @@ export const WEIGHTS = [100, 250, 500, 1000] as const
 export type Weight = typeof WEIGHTS[number]
 
 export function calculatePrice(basePrice: number, weight: Weight): number {
-  return Math.round((basePrice * weight) / 250)
+  return Math.round((basePrice * weight) / 100)
 }
 
 interface CartStore {

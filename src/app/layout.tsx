@@ -4,8 +4,9 @@ import './globals.css'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { CartDrawer } from '@/components/CartDrawer'
-import { ToastProvider } from '@/components/Toast'
 import { siteConfig } from '@/data/siteConfig'
+import { Agentation } from 'agentation'
+import { DevTools } from '@/components/DevTools'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -64,13 +65,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={`${inter.variable} ${playfair.variable}`}>
-      <body className="min-h-screen flex flex-col font-sans">
-        <ToastProvider>
+      <body className="min-h-screen flex flex-col font-sans relative">
           <Header />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 relative z-10">{children}</main>
           <Footer />
           <CartDrawer />
-        </ToastProvider>
+          <DevTools />
       </body>
     </html>
   )

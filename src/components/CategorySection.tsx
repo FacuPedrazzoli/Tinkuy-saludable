@@ -1,24 +1,15 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { categories } from '@/data/categories'
-import { MonsteraLeaf, SmallLeaf } from './LeafDecorations'
 
 export function CategorySection() {
   const featuredCategories = categories.slice(0, 6)
 
   return (
-    <section className="py-20 bg-cream-100 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-64 h-64 bg-primary-500/5 rounded-full -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-secondary-400/5 rounded-full translate-x-1/3 translate-y-1/3" />
-      <SmallLeaf className="absolute top-10 right-20 opacity-40 animate-float" />
-      <SmallLeaf className="absolute bottom-20 left-16 opacity-30 animate-float-slow" />
+    <section className="py-20 bg-cream-100">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500/10 text-primary-600 rounded-full text-sm font-medium mb-4">
-            <span className="w-2 h-2 bg-primary-500 rounded-full" />
-            Categorías
-          </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 font-display mb-4">
             Nuestras Categorías
           </h2>

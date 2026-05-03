@@ -132,6 +132,38 @@ export default function AdminOrdersPage() {
     }))
   ]
 
+  const exportToCSV = () => {
+    const headers = ['Pedido', 'Fecha', 'Cliente', 'Email', 'Teléfono', 'Total', 'Subtotal', 'Envío', 'Descuento', 'Estado', 'Pago', 'Método de Pago']
+    const rows = orders.map(order => [
+      order.order_number,
+      new Date(order.created_at).toLocaleDateString('es-AR'),
+      order.customer_name,
+      order.customer_email,
+      order.customer_phone || '',
+      order.total.toString(),
+      order.subtotal.toString(),
+      order.shipping_cost.toString(),
+      order.discount_amount.toString(),
+      statusConfig[order.status]?.es || order.status,
+      paymentConfig[order.payment_status]?.es || order.payment_status,
+      order.payment_method || ''
+    ])
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `pedidos-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -140,6 +172,16 @@ export default function AdminOrdersPage() {
           <h1 className="text-3xl font-bold text-neutral-900">Pedidos</h1>
           <p className="text-neutral-500 mt-1">{orders.length} pedidos</p>
         </div>
+        <button
+          onClick={exportToCSV}
+          disabled={orders.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Exportar CSV
+        </button>
       </div>
 
       {/* Filters */}

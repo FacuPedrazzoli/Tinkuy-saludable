@@ -7,8 +7,8 @@ const updateProductSchema = z.object({
   slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/).optional(),
   description: z.string().optional(),
   short_description: z.string().optional(),
-  price: z.number().positive().optional(),
-  original_price: z.number().positive().nullable().optional(),
+  price: z.number().min(0).optional(),
+  original_price: z.number().min(0).nullable().optional(),
   category_id: z.string().uuid().nullable().optional(),
   brand: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
@@ -111,7 +111,7 @@ export async function PUT(
     return NextResponse.json(data)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return NextResponse.json({ error: 'Datos inválidos en el formulario' }, { status: 400 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

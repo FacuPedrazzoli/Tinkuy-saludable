@@ -33,7 +33,7 @@ export function CartDrawer() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-title"
-        className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl animate-slide-down"
+        className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl animate-slide-right"
       >
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between p-6 border-b border-neutral-100">

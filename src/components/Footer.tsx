@@ -74,6 +74,11 @@ export function Footer() {
                   Preguntas Frecuentes
                 </Link>
               </li>
+              <li>
+                <Link href="/orders/tracking" className="text-neutral-400 hover:text-white transition-colors">
+                  Seguir Mi Pedido
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -96,13 +101,14 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-neutral-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+        <div className="border-t border-neutral-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-neutral-400 text-sm">
             © {new Date().getFullYear()} {siteConfig.name}. Todos los derechos reservados.
           </p>
-          <p className="text-neutral-400 text-sm mt-4 md:mt-0">
-            Hecho con ♥ para una vida más saludable
-          </p>
+          <div className="flex items-center gap-6 text-sm text-neutral-400">
+            <Link href="/politica-de-privacidad" className="hover:text-white transition-colors">Política de Privacidad</Link>
+            <Link href="/terminos-y-condiciones" className="hover:text-white transition-colors">Términos y Condiciones</Link>
+          </div>
         </div>
       </div>
     </footer>
