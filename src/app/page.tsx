@@ -63,7 +63,7 @@ export default function HomePage() {
               href="/catalog"
               className="hidden sm:inline-flex items-center gap-2 text-primary-600 font-medium hover:text-primary-700 transition-colors"
             >
-              Ver todos
+              Ver todos los productos
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
@@ -75,7 +75,7 @@ export default function HomePage() {
               href="/catalog"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors"
             >
-              Ver todos los productos
+              Ver todo el catálogo
             </Link>
           </div>
         </div>

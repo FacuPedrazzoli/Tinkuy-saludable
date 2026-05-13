@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { formatPrice } from '@/lib/utils'
+import { ToastContainer, useToast } from '@/components/Toast'
 
 interface Order {
   id: string
@@ -74,6 +75,7 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
+  const toast = useToast()
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -108,7 +110,7 @@ export default function AdminOrdersPage() {
         setSelectedOrder(null)
       }
     } catch (err) {
-      alert('Error actualizando estado')
+      toast.error('Error actualizando estado')
     }
   }
 
@@ -119,7 +121,7 @@ export default function AdminOrdersPage() {
       const data = await res.json()
       setSelectedOrder(data)
     } catch (err) {
-      alert('Error cargando pedido')
+      toast.error('Error cargando pedido')
     }
   }
 
@@ -166,6 +168,7 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

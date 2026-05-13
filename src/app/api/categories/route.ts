@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const categorySchema = z.object({
   name: z.string().min(1).max(255),
@@ -13,27 +15,36 @@ const categorySchema = z.object({
 })
 
 export async function GET() {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('sort_order', { ascending: true })
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('sort_order', { ascending: true })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      return apiError(error.message, 500)
+    }
+
+    return apiSuccess({ categories: data })
+  } catch (err) {
+    console.error('Categories GET error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  return NextResponse.json({ categories: data })
 }
 
 export async function POST(request: NextRequest) {
+  if (!validateCSRF(request)) {
+    return csrfError()
+  }
+
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('Unauthorized', 401)
   }
 
   const { data: adminUser } = await supabase
@@ -43,7 +54,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return apiError('Forbidden', 403)
   }
 
   try {
@@ -57,14 +68,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return apiError(error.message, 400)
     }
 
-    return NextResponse.json(data, { status: 201 })
+    return apiSuccess(data, 201)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return apiError(JSON.stringify(err.format()), 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return apiError('Internal server error', 500)
   }
 }

@@ -124,16 +124,43 @@ export const useWishlistStore = create<WishlistStore>()(
       },
 
       toggleItem: (product: Product) => {
-        const isIn = get().isInWishlist(product.id)
-        if (isIn) {
-          get().removeItem(product.id)
-        } else {
-          get().addItem(product)
-        }
+        set((state) => {
+          const exists = state.items.find((p) => p.id === product.id)
+          if (exists) {
+            return { items: state.items.filter((p) => p.id !== product.id) }
+          }
+          return { items: [...state.items, product] }
+        })
       },
     }),
     {
       name: 'tinkuy-wishlist',
+    }
+  )
+)
+
+interface RecentlyViewedStore {
+  products: Product[]
+  addProduct: (product: Product) => void
+  clearRecent: () => void
+}
+
+export const useRecentlyViewedStore = create<RecentlyViewedStore>()(
+  persist(
+    (set, get) => ({
+      products: [],
+
+      addProduct: (product: Product) => {
+        set((state) => {
+          const filtered = state.products.filter((p) => p.id !== product.id)
+          return { products: [product, ...filtered].slice(0, 8) }
+        })
+      },
+
+      clearRecent: () => set({ products: [] }),
+    }),
+    {
+      name: 'tinkuy-recently-viewed',
     }
   )
 )

@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const couponUpdateSchema = z.object({
   code: z.string().min(1).max(50).optional(),
@@ -18,25 +20,29 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await createClient()
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
   try {
+    const supabase = await createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
     const body = await request.json()
     const validated = couponUpdateSchema.parse(body)
 
@@ -48,15 +54,16 @@ export async function PUT(
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return apiError(error.message, 400)
     }
 
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return apiError(JSON.stringify(err.format()), 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Coupon PUT error:', err)
+    return apiError('Internal server error', 500)
   }
 }
 
@@ -64,32 +71,41 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await createClient()
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  try {
+    const supabase = await createClient()
 
-  if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
+    const { error } = await supabase
+      .from('coupons')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) {
+      return apiError(error.message, 400)
+    }
+
+    return apiSuccess({ success: true })
+  } catch (err) {
+    console.error('Coupon DELETE error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  const { error } = await supabase
-    .from('coupons')
-    .delete()
-    .eq('id', params.id)
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
-  }
-
-  return NextResponse.json({ success: true })
 }

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
+import { checkLoginRateLimit, getClientIP } from '@/lib/rateLimit'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -8,9 +11,30 @@ const loginSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
+  const ip = getClientIP(request)
+  const rateLimit = checkLoginRateLimit(ip)
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Demasiados intentos. Probá de nuevo en ' + Math.ceil(rateLimit.resetIn / 60000) + ' minutos.', code: 'RATE_LIMITED' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.resetIn),
+          'Retry-After': String(Math.ceil(rateLimit.resetIn / 1000)),
+        },
+      }
+    )
+  }
+
+  if (!validateCSRF(request)) {
+    return csrfError()
+  }
 
   try {
+    const supabase = await createClient()
+
     const body = await request.json()
     const { email, password } = loginSchema.parse(body)
 
@@ -20,40 +44,28 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 401 })
+      return apiError(error.message, 401)
     }
 
     if (data.user) {
-      console.log('User logged in:', data.user.id)
-
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('role, full_name')
         .eq('id', data.user.id)
         .single()
 
-      console.log('Profile query result:', { profile, profileError })
-
       if (profileError) {
-        console.error('Profile error:', profileError)
+        console.error('Profile fetch error:', profileError.message)
       }
 
       if (!profile) {
-        console.log('No profile found for user id:', data.user.id)
         await supabase.auth.signOut()
-        return NextResponse.json(
-          { error: 'Usuario no encontrado en la base de datos. Ejecutá el SQL para crear el usuario admin.' },
-          { status: 403 }
-        )
+        return apiError('Usuario no encontrado en la base de datos. Ejecutá el SQL para crear el usuario admin.', 403)
       }
 
       if (!['owner', 'admin', 'editor'].includes(profile.role)) {
-        console.log('User role is:', profile.role)
         await supabase.auth.signOut()
-        return NextResponse.json(
-          { error: 'No tienes permisos de administrador. Rol: ' + profile.role },
-          { status: 403 }
-        )
+        return apiError('No tienes permisos de administrador. Rol: ' + profile.role, 403)
       }
 
       await supabase
@@ -76,32 +88,41 @@ export async function POST(request: NextRequest) {
     })
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Email y password son requeridos' }, { status: 400 })
+      return apiError('Email y password son requeridos', 400)
     }
     console.error('Login error:', err)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    return apiError('Error interno del servidor', 500)
   }
 }
 
-export async function DELETE() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) {
-    await supabase
-      .from('activity_logs')
-      .insert({
-        user_id: user.id,
-        action: 'LOGOUT',
-      })
+export async function DELETE(request: NextRequest) {
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
-  const { error } = await supabase.auth.signOut()
+  try {
+    const supabase = await createClient()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user) {
+      await supabase
+        .from('activity_logs')
+        .insert({
+          user_id: user.id,
+          action: 'LOGOUT',
+        })
+    }
+
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      return apiError(error.message, 500)
+    }
+
+    return apiSuccess({ success: true })
+  } catch (err) {
+    console.error('Logout error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  return NextResponse.json({ success: true })
 }

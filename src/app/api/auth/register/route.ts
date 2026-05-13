@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -10,28 +12,29 @@ const registerSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-
-  const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !currentUser) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: currentProfile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', currentUser.id)
-    .single()
-
-  if (!currentProfile || currentProfile.role !== 'owner') {
-    return NextResponse.json(
-      { error: 'Solo el owner puede crear nuevos administradores' },
-      { status: 403 }
-    )
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
   try {
+    const supabase = await createClient()
+
+    const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !currentUser) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: currentProfile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', currentUser.id)
+      .single()
+
+    if (!currentProfile || currentProfile.role !== 'owner') {
+      return apiError('Solo el owner puede crear nuevos administradores', 403)
+    }
+
     const body = await request.json()
     const { email, password, full_name, role } = registerSchema.parse(body)
 
@@ -42,10 +45,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existing) {
-      return NextResponse.json(
-        { error: 'Este email ya está registrado' },
-        { status: 400 }
-      )
+      return apiError('Este email ya está registrado', 400)
     }
 
     const { data, error } = await supabase.auth.admin.createUser({
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return apiError(error.message, 400)
     }
 
     if (data.user) {
@@ -82,11 +82,12 @@ export async function POST(request: NextRequest) {
         })
     }
 
-    return NextResponse.json({ user: data.user }, { status: 201 })
+    return apiSuccess({ user: data.user }, 201)
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return apiError(JSON.stringify(err.format()), 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Register error:', err)
+    return apiError('Internal server error', 500)
   }
 }

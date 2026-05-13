@@ -19,7 +19,7 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold text-neutral-900">1. Identificación del Vendedor</h2>
           <p>
             Tinkuy, con domicilio en Av. Corrientes 1234, CABA, Argentina, CUIT 12-34567890-1,
-           邮件 hola@tinkuy.com, teléfono +54 11 5254-0950.
+            Email: hola@tinkuy.com, teléfono +54 11 5254-0950.
           </p>
 
           <h2 className="text-xl font-semibold text-neutral-900">2. Productos y Precios</h2>

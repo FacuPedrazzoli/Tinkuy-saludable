@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
 import { products } from '@/data/products'
 import { blogPosts } from '@/data/blog'
+import { categories } from '@/data/categories'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
@@ -13,6 +14,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/contact`, lastModified: new Date(), changeFrequency: 'monthly' as const, priority: 0.5 },
     { url: `${baseUrl}/faq`, lastModified: new Date(), changeFrequency: 'monthly' as const, priority: 0.4 },
   ]
+
+  const categoryPages = categories.map((cat) => ({
+    url: `${baseUrl}/catalog?category=${cat.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.75,
+  }))
 
   const productPages = products.map((product) => ({
     url: `${baseUrl}/product/${product.slug}`,
@@ -28,5 +36,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }))
 
-  return [...staticPages, ...productPages, ...blogPages]
+  return [...staticPages, ...categoryPages, ...productPages, ...blogPages]
 }

@@ -20,6 +20,7 @@ export function Header() {
   const wishlistCount = wishlistItems.length
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const categoryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)
@@ -72,6 +73,14 @@ export function Header() {
     }
   }, [isMobileMenuOpen])
 
+  useEffect(() => {
+    return () => {
+      if (categoryTimeoutRef.current) {
+        clearTimeout(categoryTimeoutRef.current)
+      }
+    }
+  }, [])
+
   return (
     <>
       <header
@@ -104,8 +113,18 @@ export function Header() {
               </Link>
               <div
                 className="relative"
-                onMouseEnter={() => setIsCategoryOpen(true)}
-                onMouseLeave={() => setIsCategoryOpen(false)}
+                onMouseEnter={() => {
+                  if (categoryTimeoutRef.current) {
+                    clearTimeout(categoryTimeoutRef.current)
+                    categoryTimeoutRef.current = null
+                  }
+                  setIsCategoryOpen(true)
+                }}
+                onMouseLeave={() => {
+                  categoryTimeoutRef.current = setTimeout(() => {
+                    setIsCategoryOpen(false)
+                  }, 150)
+                }}
               >
                 <button
                   className="text-neutral-700 hover:text-primary-600 transition-colors font-medium flex items-center space-x-1"

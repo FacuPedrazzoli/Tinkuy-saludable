@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const updateProductSchema = z.object({
   name: z.string().min(1).max(255).optional(),
@@ -34,46 +36,55 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Params }
 ) {
-  const supabase = await createClient()
-  const { id } = await params
+  try {
+    const supabase = await createClient()
+    const { id } = await params
 
-  const { data: product, error } = await supabase
-    .from('products')
-    .select('*, categories(*), product_images(*)')
-    .eq('id', id)
-    .single()
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('*, categories(*), product_images(*)')
+      .eq('id', id)
+      .single()
 
-  if (error || !product) {
-    return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    if (error || !product) {
+      return apiError('Product not found', 404)
+    }
+
+    return apiSuccess(product)
+  } catch (err) {
+    console.error('Product GET error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  return NextResponse.json(product)
 }
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Params }
 ) {
-  const supabase = await createClient()
-  const { id } = await params
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminUser || !['owner', 'admin', 'editor'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
   try {
+    const supabase = await createClient()
+    const { id } = await params
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin', 'editor'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
     const body = await request.json()
     const validated = updateProductSchema.parse(body)
 
@@ -84,7 +95,7 @@ export async function PUT(
       .single()
 
     if (!existing) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+      return apiError('Product not found', 404)
     }
 
     const { data, error } = await supabase
@@ -95,7 +106,7 @@ export async function PUT(
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return apiError(error.message, 400)
     }
 
     await supabase
@@ -108,12 +119,13 @@ export async function PUT(
         details: validated,
       })
 
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Datos inválidos en el formulario' }, { status: 400 })
+      return apiError('Datos inválidos en el formulario', 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Product PUT error:', err)
+    return apiError('Internal server error', 500)
   }
 }
 
@@ -121,42 +133,51 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Params }
 ) {
-  const supabase = await createClient()
-  const { id } = await params
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  try {
+    const supabase = await createClient()
+    const { id } = await params
 
-  if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      return apiError(error.message, 400)
+    }
+
+    await supabase
+      .from('activity_logs')
+      .insert({
+        user_id: user.id,
+        action: 'DELETE_PRODUCT',
+        entity_type: 'product',
+        entity_id: id,
+      })
+
+    return apiSuccess({ success: true })
+  } catch (err) {
+    console.error('Product DELETE error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  const { error } = await supabase
-    .from('products')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
-  }
-
-  await supabase
-    .from('activity_logs')
-    .insert({
-      user_id: user.id,
-      action: 'DELETE_PRODUCT',
-      entity_type: 'product',
-      entity_id: id,
-    })
-
-  return NextResponse.json({ success: true })
 }

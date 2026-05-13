@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { validateProductImage } from '@/lib/productImages'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { checkApiRateLimit, getClientIP } from '@/lib/rateLimit'
 
-export const revalidate = 3600
+export const dynamic = 'force-dynamic'
 
 interface CatalogFilters {
   page: number
@@ -58,7 +60,9 @@ function buildSupabaseQuery(supabase: Awaited<ReturnType<typeof createClient>>, 
   }
 
   if (filters.search) {
-    query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
+    const sanitizedSearch = filters.search
+      .replace(/[%_\\]/g, '\\$&')
+    query = query.or(`name.ilike.%${sanitizedSearch}%,description.ilike.%${sanitizedSearch}%`)
   }
 
   const sortColumn = filters.sort || 'created_at'
@@ -128,6 +132,23 @@ function transformProduct(product: Record<string, unknown>) {
 }
 
 export async function GET(request: NextRequest) {
+  const ip = getClientIP(request)
+  const rateLimit = checkApiRateLimit(ip)
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests', code: 'RATE_LIMITED' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(rateLimit.resetIn),
+          'Retry-After': String(Math.ceil(rateLimit.resetIn / 1000)),
+        },
+      }
+    )
+  }
+
   const { searchParams } = new URL(request.url)
 
   const useSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -221,10 +242,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Supabase catalog error:', error)
-      return NextResponse.json(
-        { error: 'Error fetching products', code: 'SUPABASE_ERROR' },
-        { status: 500 }
-      )
+      return apiError('Error fetching products', 500, 'SUPABASE_ERROR')
     }
 
     const products = (data || []).map(transformProduct)
@@ -246,9 +264,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (err) {
     console.error('Catalog API error:', err)
-    return NextResponse.json(
-      { error: 'Internal server error', code: 'INTERNAL_ERROR' },
-      { status: 500 }
-    )
+    return apiError('Internal server error', 500, 'INTERNAL_ERROR')
   }
 }

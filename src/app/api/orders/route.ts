@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const orderItemSchema = z.object({
   product_id: z.string().uuid().optional(),
@@ -42,62 +44,71 @@ interface StockCheckResult {
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const status = searchParams.get('status')
+    const search = searchParams.get('search')
+
+    let query = supabase
+      .from('orders')
+      .select('*, order_items(*), customers(full_name, email)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range((page - 1) * limit, page * limit - 1)
+
+    if (status) {
+      query = query.eq('status', status)
+    }
+
+    if (search) {
+      query = query.ilike('order_number', `%${search}%`)
+    }
+
+    const { data, error, count } = await query
+
+    if (error) {
+      return apiError(error.message, 500)
+    }
+
+    return apiSuccess({
+      orders: data,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
+    })
+  } catch (err) {
+    console.error('Orders GET error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const { searchParams } = new URL(request.url)
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '20')
-  const status = searchParams.get('status')
-  const search = searchParams.get('search')
-
-  let query = supabase
-    .from('orders')
-    .select('*, order_items(*), customers(full_name, email)', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range((page - 1) * limit, page * limit - 1)
-
-  if (status) {
-    query = query.eq('status', status)
-  }
-
-  if (search) {
-    query = query.ilike('order_number', `%${search}%`)
-  }
-
-  const { data, error, count } = await query
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({
-    orders: data,
-    pagination: {
-      page,
-      limit,
-      total: count || 0,
-      totalPages: Math.ceil((count || 0) / limit),
-    },
-  })
 }
 
 export async function POST(request: NextRequest) {
+  if (!validateCSRF(request)) {
+    return csrfError()
+  }
+
   const supabase = await createClient()
 
   try {
@@ -115,10 +126,7 @@ export async function POST(request: NextRequest) {
         .in('id', productIds)
 
       if (productsError) {
-        return NextResponse.json(
-          { error: 'Error checking stock', code: 'STOCK_CHECK_ERROR' },
-          { status: 500 }
-        )
+        return apiError('Error checking stock', 500, 'STOCK_CHECK_ERROR')
       }
 
       const stockMap = new Map(products.map(p => [p.id, { name: p.name, stock: p.stock }]))
@@ -197,7 +205,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (orderError || !order) {
-      return NextResponse.json({ error: orderError?.message || 'Failed to create order' }, { status: 400 })
+      return apiError(orderError?.message || 'Failed to create order', 400)
     }
 
     const orderItems = validated.items.map((item) => ({
@@ -211,7 +219,7 @@ export async function POST(request: NextRequest) {
 
     if (itemsError) {
       await supabase.from('orders').delete().eq('id', order.id)
-      return NextResponse.json({ error: itemsError.message }, { status: 400 })
+      return apiError(itemsError.message, 400)
     }
 
     if (validated.payment_method === 'mercadopago') {
@@ -226,18 +234,18 @@ export async function POST(request: NextRequest) {
         .select()
         .single()
 
-      return NextResponse.json({
+      return apiSuccess({
         order,
         payment,
         checkoutUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/${order.id}?payment=mercadopago`,
       })
     }
 
-    return NextResponse.json(order, { status: 201 })
+    return apiSuccess(order, 201)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return apiError(JSON.stringify(err.format()), 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return apiError('Internal server error', 500)
   }
 }

@@ -15,8 +15,8 @@ export function ProductGrid({ products, columns = 4 }: ProductGridProps) {
 
   return (
     <div className={`grid ${gridCols[columns]} gap-6`}>
-      {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+      {products.map((product, index) => (
+        <ProductCard key={product.id} product={product} priority={index < 4} />
       ))}
     </div>
   )

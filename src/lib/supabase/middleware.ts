@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -33,9 +35,26 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const lastActivity = request.cookies.get('last_activity')?.value
+  const now = Date.now()
+
+  if (lastActivity && user) {
+    const lastActivityTime = parseInt(lastActivity, 10)
+    if (now - lastActivityTime > SESSION_TIMEOUT_MS) {
+      await supabase.auth.signOut()
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  supabaseResponse.cookies.set('last_activity', now.toString(), {
+    maxAge: 60 * 60 * 24,
+    path: '/',
+  })
+
   const isAdminPath = request.nextUrl.pathname.startsWith('/admin')
   const isLoginPath = request.nextUrl.pathname === '/login'
-  const isApiPath = request.nextUrl.pathname.startsWith('/api')
 
   if (isAdminPath && !user) {
     const url = request.nextUrl.clone()

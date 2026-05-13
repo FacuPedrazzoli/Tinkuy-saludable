@@ -4,8 +4,8 @@ import './globals.css'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { CartDrawer } from '@/components/CartDrawer'
+import { CookieConsent } from '@/components/CookieConsent'
 import { siteConfig } from '@/data/siteConfig'
-import { Agentation } from 'agentation'
 import { DevTools } from '@/components/DevTools'
 
 const inter = Inter({
@@ -66,10 +66,17 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${playfair.variable}`}>
       <body className="min-h-screen flex flex-col font-sans relative">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:font-medium focus:shadow-lg"
+        >
+          Saltar al contenido principal
+        </a>
           <Header />
-          <main className="flex-1 relative z-10">{children}</main>
+          <main id="main-content" className="flex-1 relative z-10">{children}</main>
           <Footer />
           <CartDrawer />
+          <CookieConsent />
           <DevTools />
       </body>
     </html>

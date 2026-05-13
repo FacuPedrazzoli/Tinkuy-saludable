@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const reorderSchema = z.object({
   categories: z.array(z.object({
@@ -10,11 +12,31 @@ const reorderSchema = z.object({
 })
 
 export async function PUT(request: NextRequest) {
+  if (!validateCSRF(request)) {
+    return csrfError()
+  }
+
   try {
+    const supabase = await createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
     const body = await request.json()
     const validated = reorderSchema.parse(body)
-
-    const supabase = await createClient()
 
     for (const cat of validated.categories) {
       const { error } = await supabase
@@ -24,15 +46,15 @@ export async function PUT(request: NextRequest) {
 
       if (error) {
         console.error('Error reordering category:', error)
-        return NextResponse.json({ error: 'Error reordering' }, { status: 500 })
+        return apiError('Error reordering', 500)
       }
     }
 
-    return NextResponse.json({ success: true })
+    return apiSuccess({ success: true })
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return apiError(JSON.stringify(err.format()), 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return apiError('Internal server error', 500)
   }
 }

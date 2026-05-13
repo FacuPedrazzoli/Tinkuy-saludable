@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const productSchema = z.object({
   name: z.string().min(1).max(255),
@@ -31,62 +33,71 @@ const productSchema = z.object({
 const updateProductSchema = productSchema.partial()
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
-  const { searchParams } = new URL(request.url)
+  try {
+    const supabase = await createClient()
+    const { searchParams } = new URL(request.url)
 
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '50')
-  const category = searchParams.get('category')
-  const featured = searchParams.get('featured')
-  const search = searchParams.get('search')
-  const sort = searchParams.get('sort') || 'created_at'
-  const order = searchParams.get('order') || 'desc'
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const category = searchParams.get('category')
+    const featured = searchParams.get('featured')
+    const search = searchParams.get('search')
+    const sort = searchParams.get('sort') || 'created_at'
+    const order = searchParams.get('order') || 'desc'
 
-  let query = supabase
-    .from('products')
-    .select('*, categories(name, slug), product_images(url, is_primary)', { count: 'exact' })
+    let query = supabase
+      .from('products')
+      .select('*, categories(name, slug), product_images(url, is_primary)', { count: 'exact' })
 
-  if (category) {
-    query = query.eq('category_id', category)
+    if (category) {
+      query = query.eq('category_id', category)
+    }
+
+    if (featured === 'true') {
+      query = query.eq('is_featured', true)
+    }
+
+    if (search) {
+      query = query.ilike('name', `%${search}%`)
+    }
+
+    query = query
+      .eq('is_active', true)
+      .order(sort, { ascending: order === 'asc' })
+      .range((page - 1) * limit, page * limit - 1)
+
+    const { data, error, count } = await query
+
+    if (error) {
+      return apiError(error.message, 500)
+    }
+
+    return apiSuccess({
+      products: data,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
+    })
+  } catch (err) {
+    console.error('Products GET error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  if (featured === 'true') {
-    query = query.eq('is_featured', true)
-  }
-
-  if (search) {
-    query = query.ilike('name', `%${search}%`)
-  }
-
-  query = query
-    .eq('is_active', true)
-    .order(sort, { ascending: order === 'asc' })
-    .range((page - 1) * limit, page * limit - 1)
-
-  const { data, error, count } = await query
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({
-    products: data,
-    pagination: {
-      page,
-      limit,
-      total: count || 0,
-      totalPages: Math.ceil((count || 0) / limit),
-    },
-  })
 }
 
 export async function POST(request: NextRequest) {
+  if (!validateCSRF(request)) {
+    return csrfError()
+  }
+
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('Unauthorized', 401)
   }
 
   const { data: adminUser } = await supabase
@@ -96,7 +107,7 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (!adminUser || !['owner', 'admin', 'editor'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return apiError('Forbidden', 403)
   }
 
   try {
@@ -110,7 +121,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return apiError(error.message, 400)
     }
 
     await supabase
@@ -123,11 +134,11 @@ export async function POST(request: NextRequest) {
         details: { name: data.name },
       })
 
-    return NextResponse.json(data, { status: 201 })
+    return apiSuccess(data, 201)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Datos inválidos en el formulario' }, { status: 400 })
+      return apiError('Datos inválidos en el formulario', 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return apiError('Internal server error', 500)
   }
 }

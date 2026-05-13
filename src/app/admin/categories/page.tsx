@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { slugify } from '@/lib/utils'
+import { ToastContainer, useToast } from '@/components/Toast'
 
 interface Category {
   id: string
@@ -34,6 +35,7 @@ export default function AdminCategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<typeof emptyCategory | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const toast = useToast()
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -77,7 +79,7 @@ export default function AdminCategoriesPage() {
       setEditingCategory(null)
       fetchCategories()
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     } finally {
       setSaving(false)
     }
@@ -91,7 +93,7 @@ export default function AdminCategoriesPage() {
       if (!res.ok) throw new Error('Error deleting category')
       fetchCategories()
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -146,7 +148,7 @@ export default function AdminCategoriesPage() {
       const data = await res.json()
       setEditingCategory({ ...editingCategory, image_url: data.url })
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     } finally {
       setUploadingImage(false)
     }
@@ -183,6 +185,7 @@ export default function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-neutral-900">Categorías</h1>
@@ -264,7 +267,7 @@ export default function AdminCategoriesPage() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {category.image_url ? (
-                        <img src={category.image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                        <img src={category.image_url} alt={category.name} className="w-10 h-10 rounded-lg object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center">
                           <svg className="w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -363,7 +366,7 @@ export default function AdminCategoriesPage() {
                 <div className="flex items-start gap-4">
                   <div className="relative w-24 h-24 bg-neutral-100 rounded-xl overflow-hidden flex-shrink-0">
                     {editingCategory.image_url ? (
-                      <img src={editingCategory.image_url} alt="" className="w-full h-full object-cover" />
+                      <img src={editingCategory.image_url} alt={editingCategory.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <svg className="w-8 h-8 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

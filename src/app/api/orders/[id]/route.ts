@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 const updateOrderSchema = z.object({
   status: z.enum(['pending', 'paid', 'preparing', 'shipped', 'delivered', 'cancelled']).optional(),
@@ -15,51 +17,60 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Params }
 ) {
-  const supabase = await createClient()
-  const { id } = await params
+  try {
+    const supabase = await createClient()
+    const { id } = await params
 
-  const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: order, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      order_items(*)
-    `)
-    .eq('id', id)
-    .single()
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items(*)
+      `)
+      .eq('id', id)
+      .single()
 
-  if (error || !order) {
-    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    if (error || !order) {
+      return apiError('Order not found', 404)
+    }
+
+    return apiSuccess(order)
+  } catch (err) {
+    console.error('Order GET error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  return NextResponse.json(order)
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Params }
 ) {
-  const supabase = await createClient()
-  const { id } = await params
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
   try {
+    const supabase = await createClient()
+    const { id } = await params
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
     const body = await request.json()
     const validated = updateOrderSchema.parse(body)
 
@@ -70,7 +81,7 @@ export async function PATCH(
       .single()
 
     if (!existing) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      return apiError('Order not found', 404)
     }
 
     const { data, error } = await supabase
@@ -81,7 +92,7 @@ export async function PATCH(
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return apiError(error.message, 400)
     }
 
     if (validated.status && validated.status !== existing.status) {
@@ -122,11 +133,12 @@ export async function PATCH(
         details: { previous_status: existing.status, new_status: validated.status },
       })
 
-    return NextResponse.json(data)
+    return apiSuccess(data)
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.format() }, { status: 400 })
+      return apiError(JSON.stringify(err.format()), 400)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Order PATCH error:', err)
+    return apiError('Internal server error', 500)
   }
 }

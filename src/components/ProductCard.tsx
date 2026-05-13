@@ -11,9 +11,10 @@ import { validateProductImage } from '@/lib/productImages'
 interface ProductCardProps {
   product: Product
   className?: string
+  priority?: boolean
 }
 
-export function ProductCard({ product, className }: ProductCardProps) {
+export function ProductCard({ product, className, priority }: ProductCardProps) {
   const [selectedWeight, setSelectedWeight] = useState<Weight>(250)
   const [isAdding, setIsAdding] = useState(false)
   const { addItem } = useCartStore()
@@ -36,10 +37,10 @@ export function ProductCard({ product, className }: ProductCardProps) {
 
   const currentPrice = calculatePrice(product.price, selectedWeight)
   const isOutOfStock = product.stock === 0
-  const isLowStock = !isOutOfStock && product.stock < 5000
+  const hasTags = product.glutenFree || product.vegan || product.keto
 
   const productImage = validateProductImage(
-    product.images[0],
+    product.images?.[0],
     product.category,
     product.subcategory
   )
@@ -73,7 +74,8 @@ export function ProductCard({ product, className }: ProductCardProps) {
             fill
             className="object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            loading="lazy"
+            loading={priority ? 'eager' : 'lazy'}
+            priority={priority}
           />
           <button
             onClick={handleWishlist}
@@ -90,69 +92,45 @@ export function ProductCard({ product, className }: ProductCardProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
           </button>
-          <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-            {product.featured && (
-              <span className="px-2 py-0.5 bg-primary-600 text-white text-xs font-semibold rounded-md">
-                Destacado
-              </span>
-            )}
-            {discount > 0 && (
-              <span className="px-2 py-0.5 bg-secondary-400 text-white text-xs font-semibold rounded-md">
-                -{discount}%
-              </span>
-            )}
-            {product.promo && !discount && (
-              <span className="px-2 py-0.5 bg-sage-500 text-white text-xs font-semibold rounded-md">
-                {product.promo}
-              </span>
-            )}
-            {isLowStock && (
-              <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-semibold rounded-md">
-                Ultimas unidades
-              </span>
-            )}
-          </div>
-          {product.organic && (
-            <div className="absolute bottom-2 left-2 w-7 h-7 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center">
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M5 2A2 2 0 002 4v14a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm0 2h10v2H5V4zm0 4h10v2H5V8zm0 4h7v2H5v-2z" clipRule="evenodd"/>
-              </svg>
-            </div>
+          {discount > 0 && (
+            <span className="absolute top-2 left-2 px-2 py-0.5 bg-secondary-400 text-white text-xs font-semibold rounded-md">
+              -{discount}%
+            </span>
           )}
         </div>
         <div className="p-3.5">
-          <div className="flex flex-wrap items-center gap-1.5 mb-2">
-            {product.glutenFree && (
-              <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                Sin TACC
-              </span>
-            )}
-            {product.vegan && (
-              <span className="text-xs text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
-                Vegano
-              </span>
-            )}
-            {product.keto && (
-              <span className="text-xs text-pink-700 bg-pink-50 px-1.5 py-0.5 rounded">
-                Keto
-              </span>
-            )}
-          </div>
-          <h3 className="font-semibold text-neutral-900 group-hover:text-primary-600 transition-colors line-clamp-2 mb-1 text-sm">
-            {product.name}
-          </h3>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold text-neutral-900 font-mono">
-                {formatPrice(currentPrice)}
-              </span>
-              {product.originalPrice && (
-                <span className="text-sm text-neutral-400 line-through">
-                  {formatPrice(calculatePrice(product.originalPrice, selectedWeight))}
+          {hasTags && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2">
+              {product.glutenFree && (
+                <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                  Sin TACC
+                </span>
+              )}
+              {product.vegan && (
+                <span className="text-xs text-green-700 bg-green-50 px-1.5 py-0.5 rounded">
+                  Vegano
+                </span>
+              )}
+              {product.keto && (
+                <span className="text-xs text-pink-700 bg-pink-50 px-1.5 py-0.5 rounded">
+                  Keto
                 </span>
               )}
             </div>
-            <span className="text-xs text-neutral-500 font-medium">x{selectedWeight}g</span>
+          )}
+          <h3 className="font-semibold text-neutral-900 group-hover:text-primary-600 transition-colors line-clamp-2 mb-1 text-sm">
+            {product.name}
+          </h3>
+          <div className="flex items-baseline gap-1 mb-3">
+            <span className="text-xl font-bold text-neutral-900 font-mono">
+              {formatPrice(product.price)}
+            </span>
+            <span className="text-xs text-neutral-500">/ 100g</span>
+            {product.originalPrice && (
+              <span className="text-sm text-neutral-400 line-through ml-2">
+                {formatPrice(product.originalPrice)}
+              </span>
+            )}
           </div>
 
           <div className="flex gap-1.5 mb-3 sm:hidden">
@@ -193,6 +171,12 @@ export function ProductCard({ product, className }: ProductCardProps) {
               </button>
             ))}
           </div>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <span className="text-sm text-neutral-500">Total:</span>
+            <span className="text-lg font-bold text-primary-600 font-mono">
+              {formatPrice(currentPrice)}
+            </span>
+          </div>
 
           <button
             onClick={handleAddToCart}
@@ -202,7 +186,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
                 : isAdding
                 ? 'bg-emerald-500 text-white shadow-button'
-                : 'bg-primary-600 text-white hover:bg-primary-700 shadow-button hover:shadow-button-hover active:scale-[0.98]'
+                : 'bg-secondary-500 text-white hover:bg-secondary-600 shadow-button hover:shadow-button-hover active:scale-[0.98]'
             }`}
           >
             {isOutOfStock ? 'Sin Stock' : isAdding ? (

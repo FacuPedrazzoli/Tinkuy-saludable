@@ -6,6 +6,7 @@ import { products, getRelatedProducts } from '@/data/products'
 import { ProductActions } from '@/components/product/ProductActions'
 import { validateProductImage } from '@/lib/productImages'
 import { formatPrice } from '@/lib/utils'
+import { calculatePrice } from '@/lib/store'
 
 interface ProductPageProps {
   params: { slug: string }
@@ -21,6 +22,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   }
 
   const productImage = validateProductImage(product.images[0], product.category, product.subcategory)
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
 
   return {
     title: `${product.name} | Tinkuy`,
@@ -30,6 +32,15 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       description: product.shortDescription,
       images: [productImage],
       type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: product.name,
+      description: product.shortDescription,
+      images: [productImage],
+    },
+    alternates: {
+      canonical: `${baseUrl}/product/${product.slug}`,
     },
   }
 }
@@ -90,9 +101,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
           <div className="grid lg:grid-cols-2 gap-12 mb-16">
             <ProductActions product={product} />
-          </div>
-
-          <div className="space-y-8">
+            <div className="space-y-8">
               <div className="bg-white rounded-2xl border border-neutral-100 p-6">
                 <h2 className="text-xl font-bold text-neutral-900 mb-4">Descripción</h2>
                 <p className="text-neutral-600 leading-relaxed">{product.description}</p>
@@ -152,6 +161,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                 </div>
               )}
             </div>
+          </div>
 
           {relatedProducts.length > 0 && (
             <section>
@@ -178,7 +188,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                         <h3 className="font-medium text-neutral-900 group-hover:text-primary-600 transition-colors line-clamp-1">
                           {relatedProduct.name}
                         </h3>
-                        <p className="text-primary-600 font-bold font-mono mt-1">{formatPrice(relatedProduct.price)}</p>
+                        <p className="text-primary-600 font-bold font-mono mt-1">{formatPrice(calculatePrice(relatedProduct.price, 250))}</p>
                       </div>
                     </Link>
                   )

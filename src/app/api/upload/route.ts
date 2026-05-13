@@ -1,41 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!adminUser || !['owner', 'admin', 'editor'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
   try {
+    const supabase = await createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin', 'editor'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      return apiError('No file provided', 400)
     }
 
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     if (!validTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
+      return apiError('Invalid file type', 400)
     }
 
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
-      return NextResponse.json({ error: 'File too large (max 5MB)' }, { status: 400 })
+      return apiError('File too large (max 5MB)', 400)
     }
 
     const ext = file.type.split('/')[1] || 'webp'
@@ -51,16 +57,16 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Upload error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return apiError(error.message, 500)
     }
 
     const { data: urlData } = supabase.storage
       .from('products')
       .getPublicUrl(fileName)
 
-    return NextResponse.json({ url: urlData.publicUrl, path: data.path })
+    return apiSuccess({ url: urlData.publicUrl, path: data.path })
   } catch (err) {
     console.error('Upload error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return apiError('Internal server error', 500)
   }
 }

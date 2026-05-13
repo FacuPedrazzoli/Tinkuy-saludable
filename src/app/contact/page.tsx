@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { siteConfig } from '@/data/siteConfig'
+import { ToastContainer, useToast } from '@/components/Toast'
 
 interface ContactForm {
   name: string
@@ -13,6 +14,7 @@ interface ContactForm {
 
 export default function ContactPage() {
   const router = useRouter()
+  const toast = useToast()
   const [form, setForm] = useState<ContactForm>({
     name: '',
     email: '',
@@ -52,23 +54,30 @@ export default function ContactPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) return
 
-    const contacts = JSON.parse(localStorage.getItem('tinkuy-contacts') || '[]')
-    contacts.push({
-      ...form,
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
-    })
-    localStorage.setItem('tinkuy-contacts', JSON.stringify(contacts))
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
 
-    setSubmitted(true)
-    setTimeout(() => {
-      router.push('/')
-    }, 3000)
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error al enviar el mensaje')
+      }
+
+      setSubmitted(true)
+      setTimeout(() => {
+        router.push('/')
+      }, 3000)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al enviar el mensaje')
+    }
   }
 
   const handleChange = (
@@ -230,6 +239,7 @@ export default function ContactPage() {
           </button>
         </form>
       </div>
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
     </div>
   )
 }

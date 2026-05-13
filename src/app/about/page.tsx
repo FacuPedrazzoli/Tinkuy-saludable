@@ -34,7 +34,20 @@ export default function AboutPage() {
               </p>
             </div>
 
-            
+            <div className="bg-neutral-50 p-8 rounded-2xl mb-12">
+              <h2 className="font-display text-2xl font-bold text-neutral-900 mb-4">
+                Nuestra Misión
+              </h2>
+              <p className="text-neutral-600 mb-4">
+                Democratizar el acceso a alimentos saludables y de calidad. Trabajamos directamente
+                con productores locales y cooperativas para garantizar que cada producto que vendemos
+                cumpla con los más altos estándares.
+              </p>
+              <p className="text-neutral-600">
+                Creemos que alimentarse bien no debería ser un lujo. Por eso luchamos contra
+                los precios inflados y ofrecemos productos premium a precios justos.
+              </p>
+            </div>
 
             <div className="bg-neutral-50 p-8 rounded-2xl mb-12">
               <h2 className="font-display text-2xl font-bold text-neutral-900 mb-4">
@@ -57,7 +70,18 @@ export default function AboutPage() {
               </ul>
             </div>
 
-            
+            <div className="bg-neutral-50 p-8 rounded-2xl mb-12">
+              <h2 className="font-display text-2xl font-bold text-neutral-900 mb-4">
+                Contacto
+              </h2>
+              <p className="text-neutral-600 mb-4">
+                Visitanos en nuestro local de Av. Corrientes 1234, CABA.
+                Estamos abiertos de lunes a sábado de 9:00 a 20:00hs.
+              </p>
+              <p className="text-neutral-600">
+                ¿Tenés preguntas? Escribinos a hola@tinkuy.com o llamanos al +54 11 5254-0950.
+              </p>
+            </div>
           </div>
         </div>
       </div>

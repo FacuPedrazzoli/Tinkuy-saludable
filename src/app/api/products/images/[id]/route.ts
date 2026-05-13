@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
+import { validateCSRF, csrfError } from '@/lib/csrf'
 
 type Params = Promise<{ id: string }>
 
@@ -7,33 +9,42 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Params }
 ) {
-  const supabase = await createClient()
-  const { id } = await params
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!validateCSRF(request)) {
+    return csrfError()
   }
 
-  const { data: adminUser } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  try {
+    const supabase = await createClient()
+    const { id } = await params
 
-  if (!adminUser || !['owner', 'admin', 'editor'].includes(adminUser.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return apiError('Unauthorized', 401)
+    }
+
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!adminUser || !['owner', 'admin', 'editor'].includes(adminUser.role)) {
+      return apiError('Forbidden', 403)
+    }
+
+    const { error } = await supabase
+      .from('product_images')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      return apiError(error.message, 400)
+    }
+
+    return apiSuccess({ success: true })
+  } catch (err) {
+    console.error('Product image DELETE error:', err)
+    return apiError('Internal server error', 500)
   }
-
-  const { error } = await supabase
-    .from('product_images')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
-  }
-
-  return NextResponse.json({ success: true })
 }

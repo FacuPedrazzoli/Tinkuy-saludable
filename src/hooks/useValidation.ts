@@ -21,7 +21,7 @@ export interface ValidationRule<T = string> {
   message: string
 }
 
-export function createValidator<T>(
+export function createValidator<T extends string>(
   rules: Record<string, ValidationRule[]>
 ) {
   return (fieldName: string, value: T): string | null => {
@@ -29,7 +29,7 @@ export function createValidator<T>(
     if (!fieldRules) return null
 
     for (const rule of fieldRules) {
-      if (!rule.validate(value as any)) {
+      if (!rule.validate(value)) {
         return rule.message
       }
     }

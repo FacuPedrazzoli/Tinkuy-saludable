@@ -1,8 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { formatPrice, formatStock } from '@/lib/utils'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import Image from 'next/image'
+import { formatPrice } from '@/lib/utils'
 import { ImageUploadZone, ImageGallery } from '@/components/admin/ImageUpload'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { ToastContainer, useToast } from '@/components/Toast'
 
 interface Product {
   id: string
@@ -110,6 +113,8 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [productImages, setProductImages] = useState<ProductImage[]>([])
   const [initialImageIds, setInitialImageIds] = useState<Set<string>>(new Set())
+  const modalRef = useFocusTrap(showModal)
+  const toast = useToast()
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -222,7 +227,7 @@ const dataToSend = {
       setInitialImageIds(new Set())
       fetchProducts()
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     } finally {
       setSaving(false)
     }
@@ -236,41 +241,50 @@ const dataToSend = {
       if (!res.ok) throw new Error('Error deleting product')
       fetchProducts()
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     }
   }
 
-  const openEdit = (product: Product) => {
-    const images = product.product_images?.map(img => ({
-      url: img.url,
-      id: img.id,
-      is_primary: img.is_primary,
-    })) || []
+  const openEdit = async (product: Product) => {
+    try {
+      const res = await fetch(`/api/products/${product.id}`)
+      if (!res.ok) throw new Error('Error fetching product')
+      const fullProduct = await res.json()
 
-    setEditingProduct({
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      description: product.description || '',
-      short_description: product.short_description || '',
-      price: product.price,
-      original_price: product.original_price,
-      category_id: product.category_id || '',
-      brand: product.brand || '',
-      tags: [],
-      ingredients: '',
-      stock: product.stock,
-      is_featured: product.is_featured,
-      is_active: product.is_active,
-      is_organic: product.is_organic,
-      is_gluten_free: product.is_gluten_free,
-      is_vegan: product.is_vegan,
-      is_keto: product.is_keto,
-      weight_options: [100, 250, 500, 1000],
-    })
-    setProductImages(images)
-    setInitialImageIds(new Set(images.map(img => img.id).filter(Boolean) as string[]))
-    setShowModal(true)
+      const images = (fullProduct.product_images || []).map((img: { url: string; id: string; is_primary: boolean }) => ({
+        url: img.url,
+        id: img.id,
+        is_primary: img.is_primary,
+      }))
+
+      setEditingProduct({
+        id: fullProduct.id,
+        name: fullProduct.name,
+        slug: fullProduct.slug,
+        description: fullProduct.description || '',
+        short_description: fullProduct.short_description || '',
+        price: fullProduct.price,
+        original_price: fullProduct.original_price,
+        category_id: fullProduct.category_id || '',
+        brand: fullProduct.brand || '',
+        tags: fullProduct.tags || [],
+        ingredients: fullProduct.ingredients || '',
+        stock: fullProduct.stock,
+        is_featured: fullProduct.is_featured || false,
+        is_active: fullProduct.is_active !== false,
+        is_organic: fullProduct.is_organic || false,
+        is_gluten_free: fullProduct.is_gluten_free || false,
+        is_vegan: fullProduct.is_vegan || false,
+        is_keto: fullProduct.is_keto || false,
+        weight_options: fullProduct.weight_options || [100, 250, 500, 1000],
+      })
+      setProductImages(images)
+      setInitialImageIds(new Set(images.map((img: { id?: string }) => img.id).filter(Boolean) as string[]))
+      setShowModal(true)
+    } catch (err) {
+      console.error('Error opening edit:', err)
+      toast.error('Error al cargar el producto')
+    }
   }
 
   const openNew = () => {
@@ -304,13 +318,14 @@ const dataToSend = {
   }
 
   const getStockBg = (stock: number) => {
-    if (stock >= 20000) return 'bg-emerald-100 text-emerald-700'
-    if (stock >= 10000) return 'bg-amber-100 text-amber-700'
+    if (stock >= 100) return 'bg-emerald-100 text-emerald-700'
+    if (stock >= 50) return 'bg-amber-100 text-amber-700'
     return 'bg-red-100 text-red-700'
   }
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-neutral-900">Productos</h1>
@@ -398,7 +413,7 @@ const dataToSend = {
             <div key={product.id} className="bg-white rounded-2xl border border-neutral-100 overflow-hidden hover:shadow-lg hover:border-neutral-200 transition-all group">
               <div className="relative h-48 bg-gradient-to-br from-neutral-100 to-neutral-50 flex items-center justify-center">
                 {product.product_images?.[0]?.url ? (
-                  <img src={product.product_images[0].url} alt={product.name} className="w-full h-full object-cover" />
+                  <Image src={product.product_images[0].url} alt={product.name} fill className="object-cover" />
                 ) : (
                   <svg className="w-16 h-16 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -444,7 +459,7 @@ const dataToSend = {
                     )}
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStockBg(product.stock)}`}>
-                    {formatStock(product.stock)}
+                    {product.stock.toLocaleString('es-AR')} uds.
                   </span>
                 </div>
               </div>
@@ -468,9 +483,9 @@ const dataToSend = {
               {products.map((product) => (
                 <tr key={product.id} className="hover:bg-neutral-50 transition-colors">
                   <td className="px-6 py-4 flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-neutral-100 flex-shrink-0 overflow-hidden">
+                    <div className="w-12 h-12 rounded-lg bg-neutral-100 flex-shrink-0 overflow-hidden relative">
                       {product.product_images?.[0]?.url && (
-                        <img src={product.product_images[0].url} alt={product.name} className="w-full h-full object-cover" />
+                        <Image src={product.product_images[0].url} alt={product.name} fill className="object-cover" />
                       )}
                     </div>
                     <div>
@@ -488,7 +503,7 @@ const dataToSend = {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-medium text-neutral-900">{formatStock(product.stock)}</span>
+                    <span className="font-medium text-neutral-900">{product.stock.toLocaleString('es-AR')} uds.</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-1">
@@ -524,7 +539,7 @@ const dataToSend = {
       )}
 
       {showModal && editingProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" ref={modalRef}>
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
               <h2 className="text-xl font-bold text-neutral-900">
@@ -579,7 +594,7 @@ const dataToSend = {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Stock (gramos)</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Stock (unidades)</label>
                   <input
                     type="number"
                     value={editingProduct.stock}

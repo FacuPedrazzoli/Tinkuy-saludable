@@ -17,6 +17,8 @@ export function ProductActions({ product }: ProductActionsProps) {
   const [selectedWeight, setSelectedWeight] = useState<Weight>(250)
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
+  const [isZoomed, setIsZoomed] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const { addItem } = useCartStore()
 
   const productImage = validateProductImage(
@@ -40,15 +42,20 @@ export function ProductActions({ product }: ProductActionsProps) {
   return (
     <>
       <div className="space-y-4">
-        <div className="relative aspect-square bg-white rounded-2xl overflow-hidden border border-neutral-100">
-          <Image
-            src={selectedImage === 0 ? productImage : product.images[selectedImage]}
-            alt={product.name}
-            fill
-            className="object-cover"
-            priority
-            sizes="(max-width: 1024px) 100vw, 50vw"
-          />
+        <div
+            className="relative aspect-square bg-white rounded-2xl overflow-hidden border border-neutral-100 cursor-zoom-in"
+            onMouseEnter={() => setIsZoomed(true)}
+            onMouseLeave={() => setIsZoomed(false)}
+            onClick={() => setIsModalOpen(true)}
+          >
+            <Image
+              src={selectedImage === 0 ? productImage : product.images[selectedImage]}
+              alt={product.name}
+              fill
+              className={`object-cover transition-transform duration-300 ${isZoomed ? 'scale-150' : 'scale-100'}`}
+              priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
+            />
           {product.promo && (
             <span className="absolute top-4 left-4 px-3 py-1 bg-primary-600 text-white text-sm font-bold rounded-full">
               {product.promo}
@@ -231,6 +238,51 @@ export function ProductActions({ product }: ProductActionsProps) {
           </p>
         )}
       </div>
+
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-neutral-300"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div className="relative w-full max-w-4xl aspect-square" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={selectedImage === 0 ? productImage : product.images[selectedImage]}
+              alt={product.name}
+              fill
+              className="object-contain"
+              sizes="100vw"
+            />
+          </div>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            {product.images.map((image, index) => (
+              <button
+                key={index}
+                onClick={() => setSelectedImage(index)}
+                className={cn(
+                  'w-16 h-16 rounded-lg overflow-hidden border-2',
+                  selectedImage === index ? 'border-white' : 'border-transparent'
+                )}
+              >
+                <Image
+                  src={index === 0 ? productImage : image}
+                  alt={`${product.name} - Miniatura ${index + 1}`}
+                  fill
+                  className="object-cover"
+                  sizes="64px"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   )
 }

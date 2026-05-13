@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { formatPrice } from '@/lib/utils'
+import { ToastContainer, useToast } from '@/components/Toast'
 
 interface Coupon {
   id: string
@@ -38,6 +39,7 @@ export default function AdminCouponsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editingCoupon, setEditingCoupon] = useState<typeof emptyCoupon | null>(null)
   const [saving, setSaving] = useState(false)
+  const toast = useToast()
 
   const fetchCoupons = useCallback(async () => {
     try {
@@ -88,7 +90,7 @@ export default function AdminCouponsPage() {
       setEditingCoupon(null)
       fetchCoupons()
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     } finally {
       setSaving(false)
     }
@@ -102,7 +104,7 @@ export default function AdminCouponsPage() {
       if (!res.ok) throw new Error('Error deleting coupon')
       fetchCoupons()
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -116,7 +118,7 @@ export default function AdminCouponsPage() {
       if (!res.ok) throw new Error('Error updating coupon')
       fetchCoupons()
     } catch (err: any) {
-      alert(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -156,6 +158,7 @@ export default function AdminCouponsPage() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-neutral-900">Cupones</h1>

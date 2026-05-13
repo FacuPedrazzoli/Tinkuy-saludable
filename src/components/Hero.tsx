@@ -34,7 +34,7 @@ export function Hero() {
                 href="/catalog"
                 className="inline-flex items-center justify-center px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-all duration-300 hover:shadow-lg hover:shadow-primary-500/20 hover:-translate-y-0.5"
               >
-                Ver Tienda
+                Ver Catálogo
                 <svg className="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
@@ -43,7 +43,7 @@ export function Hero() {
                 href="/about"
                 className="inline-flex items-center justify-center px-8 py-4 bg-white text-neutral-700 font-semibold rounded-xl border border-neutral-200 hover:border-primary-300 hover:text-primary-600 transition-all duration-300"
               >
-                Conocenos
+                Conocer más
               </Link>
             </div>
 
@@ -75,20 +75,15 @@ export function Hero() {
 
           <div className="relative flex items-center justify-center lg:justify-end">
             <div className="relative group">
-              <div className="absolute -inset-4 bg-gradient-to-br from-primary-200/30 via-secondary-100/30 to-sage-100/20 rounded-[2.5rem] blur-xl group-hover:blur-2xl transition-all duration-500" />
-
-              <div className="relative bg-[#EFE5D6] rounded-[2rem] p-10 sm:p-12 lg:p-14 shadow-[0_8px_40px_rgba(0,0,0,0.08)] shadow-neutral-300/50 ring-1 ring-black/5">
-                <div className="relative w-56 h-56 sm:w-72 sm:h-72 lg:w-80 lg:h-80 transition-transform duration-500 group-hover:scale-[1.02]">
-                  <Image
-                    src="/logo-tinkuy.png"
-                    alt="Tinkuy - Productos naturales premium"
-                    fill
-                    className="object-contain"
-                    priority
-                    sizes="(max-width: 640px) 224px, (max-width: 1024px) 288px, 320px"
-                  />
-                </div>
-              </div>
+              <div className="absolute -inset-6 bg-gradient-to-br from-primary-200/20 to-secondary-200/20 rounded-[3rem] blur-2xl group-hover:blur-3xl transition-all duration-500" />
+              <Image
+                src="/logo-tinkuy.png"
+                alt="Tinkuy - Productos naturales premium"
+                width={380}
+                height={380}
+                className="relative object-contain drop-shadow-xl hover:drop-shadow-2xl transition-all duration-500 group-hover:scale-105"
+                priority
+              />
             </div>
           </div>
         </div>

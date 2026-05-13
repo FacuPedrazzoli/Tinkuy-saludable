@@ -48,3 +48,13 @@ export function formatStock(grams: number): string {
   }
   return `${grams}g`
 }
+
+export function sanitizeHtml(text: string): string {
+  return text
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
+}

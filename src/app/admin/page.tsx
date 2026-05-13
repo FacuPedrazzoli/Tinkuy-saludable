@@ -152,7 +152,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           <p className="text-2xl font-bold text-neutral-900">{formatPrice(metrics.revenueThisMonth)}</p>
-          <p className="text-xs text-emerald-600 mt-1">+12% vs mes anterior</p>
+          <p className="text-xs text-neutral-400 mt-1">{/* TODO: calcular real */}</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-neutral-100 p-5">

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { apiSuccess, apiError } from '@/lib/apiResponse'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -7,10 +8,7 @@ export async function GET(request: NextRequest) {
   const email = searchParams.get('email')
 
   if (!orderNumber || !email) {
-    return NextResponse.json(
-      { error: 'Se requiere número de pedido y email' },
-      { status: 400 }
-    )
+    return apiError('Se requiere número de pedido y email', 400)
   }
 
   try {
@@ -28,10 +26,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error || !order) {
-      return NextResponse.json(
-        { error: 'No se encontró el pedido' },
-        { status: 404 }
-      )
+      return apiError('No se encontró el pedido', 404)
     }
 
     const response = {
@@ -55,12 +50,9 @@ export async function GET(request: NextRequest) {
       })),
     }
 
-    return NextResponse.json({ order: response })
+    return apiSuccess({ order: response })
   } catch (err) {
     console.error('Order tracking error:', err)
-    return NextResponse.json(
-      { error: 'Error interno del servidor' },
-      { status: 500 }
-    )
+    return apiError('Error interno del servidor', 500)
   }
 }
