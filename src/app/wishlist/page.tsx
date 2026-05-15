@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
-import { useWishlistStore, useHydrationStore } from '@/lib/store'
+import { useWishlistStore } from '@/lib/store'
+import { useHydration } from '@/hooks/useHydration'
 import { ProductCard } from '@/components/ProductCard'
 import Link from 'next/link'
 
@@ -9,10 +10,10 @@ export const metadata: Metadata = {
 }
 
 export default function WishlistPage() {
-  const isHydrated = useHydrationStore((state) => state.isHydrated)
+  const hydrated = useHydration()
   const items = useWishlistStore((state) => state.items)
 
-  if (!isHydrated) {
+  if (!hydrated) {
     return null
   }
 

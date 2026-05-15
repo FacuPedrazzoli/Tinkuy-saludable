@@ -22,32 +22,34 @@ export function FAQSection() {
   }, [])
 
   return (
-    <section className="py-16 bg-sage-50/50">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-10">
-
-          <h2 className="text-2xl font-bold text-neutral-900 font-display mb-2">
+    <section className="py-20 bg-cream-50/50">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 font-display mb-4">
             Preguntas Frecuentes
           </h2>
+          <p className="text-neutral-500 text-lg">
+            Encontrá respuestas a las dudas más comunes sobre nuestros productos y servicios
+          </p>
         </div>
 
-        <div className="space-y-3" role="region" aria-label="Preguntas frecuentes">
+        <div className="space-y-4" role="region" aria-label="Preguntas frecuentes">
           {faqs.slice(0, 4).map((faq) => (
             <div
               key={faq.id}
-              className="border border-primary-200/50 rounded-xl overflow-hidden bg-white shadow-sm"
+              className="bg-white rounded-2xl border border-neutral-100 shadow-card overflow-hidden transition-all duration-300 hover:shadow-card-hover"
             >
               <h3 className="sr-only">{faq.question}</h3>
               <button
                 onClick={() => setOpenId(openId === faq.id ? null : faq.id)}
                 onKeyDown={(e) => handleKeyDown(e, faq.id)}
-                className="w-full flex items-center justify-between p-5 text-left bg-white hover:bg-cream-50 transition-colors"
+                className="w-full flex items-center justify-between p-6 text-left bg-white hover:bg-neutral-50 transition-colors duration-200"
                 aria-expanded={openId === faq.id}
                 aria-controls={`faq-answer-${faq.id}`}
               >
-                <span className="font-medium text-neutral-900 pr-4">{faq.question}</span>
+                <span className="font-bold text-neutral-900 pr-6 text-base">{faq.question}</span>
                 <svg
-                  className={`w-5 h-5 text-secondary-400 flex-shrink-0 transition-transform ${
+                  className={`w-6 h-6 text-secondary-400 flex-shrink-0 transition-all duration-300 ${
                     openId === faq.id ? 'rotate-180' : ''
                   }`}
                   fill="none"
@@ -61,7 +63,7 @@ export function FAQSection() {
               {openId === faq.id && (
                 <div
                   id={`faq-answer-${faq.id}`}
-                  className="px-5 pb-5 text-neutral-600 animate-slide-down bg-cream-50/50"
+                  className="px-6 pb-6 pt-2 text-neutral-600 leading-relaxed animate-slide-down"
                 >
                   {faq.answer}
                 </div>
@@ -70,13 +72,13 @@ export function FAQSection() {
           ))}
         </div>
 
-        <div className="text-center mt-8">
+        <div className="text-center mt-10">
           <a
             href="/faq"
-            className="inline-flex items-center gap-2 text-primary-600 font-medium hover:text-primary-700 transition-colors"
+            className="group inline-flex items-center gap-2 px-6 py-3 bg-white text-neutral-700 font-semibold rounded-xl border-2 border-neutral-200 hover:border-primary-300 hover:text-primary-600 transition-all duration-300 shadow-card hover:shadow-card-hover"
           >
-            Ver todas las preguntas
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <span>Ver todas las preguntas</span>
+            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </a>

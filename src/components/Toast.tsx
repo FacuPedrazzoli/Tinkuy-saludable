@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { TIMEOUTS } from '@/lib/constants'
 
 type ToastType = 'success' | 'error' | 'info'
 
@@ -57,7 +58,7 @@ export function useToast() {
     setToasts((prev) => [...prev, { id, message, type }])
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 5000)
+    }, TIMEOUTS.TOAST_DURATION)
   }
 
   const removeToast = (id: string) => {

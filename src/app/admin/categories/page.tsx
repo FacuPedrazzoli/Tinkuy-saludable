@@ -40,12 +40,7 @@ export default function AdminCategoriesPage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const toast = useToast()
 
-  const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCategoriesResult>(GET_CATEGORIES, {
-    onError: (error) => {
-      console.error('Categories query error:', error);
-      setError('Error cargando categorías');
-    },
-  });
+  const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCategoriesResult>(GET_CATEGORIES);
 
   useEffect(() => {
     if (gqlError) {
@@ -193,7 +188,8 @@ export default function AdminCategoriesPage() {
       formData.append('file', file)
       formData.append('folder', 'categories')
 
-      const res = await fetch('/api/upload', {
+      const uploadUrl = (process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000').replace('/graphql', '/upload')
+      const res = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       })
@@ -261,43 +257,43 @@ export default function AdminCategoriesPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-12 text-center">
           <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-          <p className="text-red-600">{error}</p>
-          <button onClick={() => refetch()} className="mt-2 text-primary-600 hover:underline">
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
+          <p className="text-red-600 dark:text-red-300">{error}</p>
+          <button onClick={() => refetch()} className="mt-2 text-primary-600 dark:text-primary-400 hover:underline">
             Reintentar
           </button>
         </div>
       ) : categories.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center">
-          <svg className="w-16 h-16 text-neutral-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-12 text-center">
+          <svg className="w-16 h-16 text-neutral-300 dark:text-neutral-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No hay categorías</h3>
-          <p className="text-neutral-500 mb-6">Empezá creando tu primera categoría</p>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">No hay categorías</h3>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-6">Empezá creando tu primera categoría</p>
           <button onClick={openNew} className="px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium">
             Crear Categoría
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-neutral-50">
+            <thead className="bg-neutral-50 dark:bg-neutral-800">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 w-16">Orden</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Categoría</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Slug</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Productos</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Estado</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900">Acciones</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white w-16">Orden</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Categoría</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Slug</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Productos</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Estado</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900 dark:text-white">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-700">
               {categories.map((category, index) => (
-                <tr key={category.id} className="hover:bg-neutral-50 transition-colors">
+                <tr key={category.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1">
                       <button
@@ -333,12 +329,12 @@ export default function AdminCategoriesPage() {
                           </svg>
                         </div>
                       )}
-                      <span className="font-medium text-neutral-900">{category.name}</span>
+                      <span className="font-medium text-neutral-900 dark:text-white">{category.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-500">{category.slug}</td>
+                  <td className="px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400">{category.slug}</td>
                   <td className="px-6 py-4">
-                    <span className="px-3 py-1 bg-neutral-100 text-neutral-700 rounded-full text-sm font-medium">
+                    <span className="px-3 py-1 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-full text-sm font-medium">
                       {category.productCount}
                     </span>
                   </td>
@@ -379,10 +375,10 @@ export default function AdminCategoriesPage() {
       )}
 
       {showModal && editingCategory && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg">
-            <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-neutral-900">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl w-full max-w-lg">
+            <div className="p-6 border-b border-neutral-100 dark:border-neutral-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
                 {editingCategory.id ? 'Editar Categoría' : 'Nueva Categoría'}
               </h2>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-neutral-100 rounded-lg">
@@ -393,38 +389,38 @@ export default function AdminCategoriesPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label htmlFor="category-name" className="block text-sm font-medium text-neutral-700 mb-1">Nombre <span className="text-red-500">*</span></label>
+                <label htmlFor="category-name" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Nombre <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   id="category-name"
                   name="category-name"
                   value={editingCategory.name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
                 />
               </div>
               <div>
-                <label htmlFor="category-slug" className="block text-sm font-medium text-neutral-700 mb-1">Slug</label>
+                <label htmlFor="category-slug" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Slug</label>
                 <input
                   type="text"
                   id="category-slug"
                   name="category-slug"
                   value={editingCategory.slug}
                   onChange={(e) => setEditingCategory({ ...editingCategory, slug: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-neutral-50"
+                  className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white bg-neutral-50"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Descripción</label>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Descripción</label>
                 <textarea
                   value={editingCategory.description}
                   onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
+                  className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white resize-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Imagen</label>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Imagen</label>
                 <div className="flex items-start gap-4">
                   <div className="relative w-24 h-24 bg-neutral-100 rounded-xl overflow-hidden flex-shrink-0">
                     {editingCategory.imageUrl ? (
@@ -470,11 +466,11 @@ export default function AdminCategoriesPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Categoría padre</label>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Categoría padre</label>
                 <select
                   value={editingCategory.parentId || ''}
                   onChange={(e) => setEditingCategory({ ...editingCategory, parentId: e.target.value || null })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white"
+                  className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white bg-white"
                 >
                   <option value="">Sin categoría padre</option>
                   {categories

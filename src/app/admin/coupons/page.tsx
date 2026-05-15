@@ -44,12 +44,7 @@ export default function AdminCouponsPage() {
   const [saving, setSaving] = useState(false)
   const toast = useToast()
 
-  const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCouponsResult>(GET_COUPONS, {
-    onError: (error) => {
-      console.error('Coupons query error:', error);
-      setError('Error cargando cupones');
-    },
-  });
+  const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCouponsResult>(GET_COUPONS);
 
   useEffect(() => {
     if (gqlLoading) {
@@ -240,8 +235,8 @@ export default function AdminCouponsPage() {
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900">Cupones</h1>
-          <p className="text-neutral-500 mt-1">{coupons.length} cupones</p>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Cupones</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{coupons.length} cupones</p>
         </div>
         <button
           onClick={openNew}
@@ -255,7 +250,7 @@ export default function AdminCouponsPage() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-12 text-center">
           <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
       ) : error ? (
@@ -266,42 +261,42 @@ export default function AdminCouponsPage() {
           </button>
         </div>
       ) : coupons.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-12 text-center">
           <svg className="w-16 h-16 text-neutral-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
           </svg>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No hay cupones</h3>
-          <p className="text-neutral-500 mb-6">Empezá creando tu primer cupón de descuento</p>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">No hay cupones</h3>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-6">Empezá creando tu primer cupón de descuento</p>
           <button onClick={openNew} className="px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium">
             Crear Cupón
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-neutral-50">
+            <thead className="bg-neutral-50 dark:bg-neutral-800">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Código</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Tipo</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Valor</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Uso</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Vencimiento</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Estado</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900">Acciones</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Código</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Tipo</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Valor</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Uso</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Vencimiento</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Estado</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900 dark:text-white">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-700">
               {coupons.map((coupon) => {
                 const valid = isValid(coupon)
                 const expired = isExpired(coupon)
 
                 return (
-                  <tr key={coupon.id} className="hover:bg-neutral-50 transition-colors">
+                  <tr key={coupon.id} className="hover:bg-neutral-50 dark:bg-neutral-800 transition-colors">
                     <td className="px-6 py-4">
                       <div>
-                        <p className="font-medium text-neutral-900 font-mono">{coupon.code}</p>
+                        <p className="font-medium text-neutral-900 dark:text-white font-mono">{coupon.code}</p>
                         {coupon.description && (
-                          <p className="text-sm text-neutral-500 truncate max-w-xs">{coupon.description}</p>
+                          <p className="text-sm text-neutral-500 dark:text-neutral-400 truncate max-w-xs">{coupon.description}</p>
                         )}
                       </div>
                     </td>
@@ -311,24 +306,24 @@ export default function AdminCouponsPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-semibold text-neutral-900">
+                      <p className="font-semibold text-neutral-900 dark:text-white">
                         {coupon.discountType === 'percentage'
                           ? `${coupon.discountValue}%`
                           : formatPrice(coupon.discountValue)}
                       </p>
                       {coupon.minPurchase > 0 && (
-                        <p className="text-xs text-neutral-500">Mín: {formatPrice(coupon.minPurchase)}</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">Mín: {formatPrice(coupon.minPurchase)}</p>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-medium text-neutral-900">
+                      <p className="font-medium text-neutral-900 dark:text-white">
                         {coupon.usesCount}
                         {coupon.maxUses ? ` / ${coupon.maxUses}` : ''}
                       </p>
                     </td>
                     <td className="px-6 py-4">
                       {coupon.expiresAt ? (
-                        <p className={`text-sm ${expired ? 'text-red-600' : 'text-neutral-900'}`}>
+                        <p className={`text-sm ${expired ? 'text-red-600' : 'text-neutral-900 dark:text-white'}`}>
                           {new Date(coupon.expiresAt).toLocaleDateString('es-AR')}
                         </p>
                       ) : (
@@ -383,7 +378,7 @@ export default function AdminCouponsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-neutral-900">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
                 {editingCoupon.id ? 'Editar Cupón' : 'Nuevo Cupón'}
               </h2>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-neutral-100 rounded-lg">

@@ -1,3 +1,5 @@
+'use client'
+
 import { Hero } from '@/components/Hero'
 import { CategorySection } from '@/components/CategorySection'
 import { ProductGrid } from '@/components/ProductGrid'
@@ -6,15 +8,16 @@ import { getFeaturedProducts } from '@/data/products'
 import { siteConfig } from '@/data/siteConfig'
 import { safeJsonStringify } from '@/lib/utils'
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { Product } from '@/types'
 
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: siteConfig.name,
   description: siteConfig.description,
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com',
-  logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'}/logo-tinkuy.png`,
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app',
+  logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'}/logo-tinkuy.png`,
   contactPoint: {
     '@type': 'ContactPoint',
     telephone: siteConfig.phone,
@@ -33,10 +36,14 @@ const organizationSchema = {
     : [],
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
 
 export default function HomePage() {
-  const featuredProducts = useMemo(() => getFeaturedProducts().slice(0, 8), [])
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
+
+  useEffect(() => {
+    getFeaturedProducts().then(products => setFeaturedProducts(products.slice(0, 8)))
+  }, [])
 
   const productSchema = useMemo(() => featuredProducts.map((product) => ({
     '@context': 'https://schema.org',

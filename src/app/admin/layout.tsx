@@ -7,6 +7,7 @@ import { siteConfig } from '@/data/siteConfig'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { ProtectedRoute } from '@/hooks/ProtectedRoute'
+import { AdminDarkModeProvider, useAdminDarkMode } from '@/hooks/useAdminDarkMode'
 
 const adminNav = [
   { href: '/admin', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -20,10 +21,46 @@ const adminNav = [
 const SESSION_TIMEOUT_MS = 25 * 60 * 1000
 const SESSION_WARNING_MS = 5 * 60 * 1000
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function DarkModeToggle() {
+  const { isDarkMode, toggleDarkMode } = useAdminDarkMode()
+
+  return (
+    <button
+      onClick={toggleDarkMode}
+      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors w-full"
+      aria-label={isDarkMode ? 'Desactivar modo oscuro' : 'Activar modo oscuro'}
+    >
+      <div className={cn(
+        'w-10 h-6 rounded-full p-0.5 transition-colors',
+        isDarkMode ? 'bg-primary-600' : 'bg-neutral-300'
+      )}>
+        <div className={cn(
+          'w-5 h-5 rounded-full bg-white shadow-sm transition-transform flex items-center justify-center',
+          isDarkMode ? 'translate-x-4' : 'translate-x-0'
+        )}>
+          {isDarkMode ? (
+            <svg className="w-3 h-3 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" clipRule="evenodd" />
+            </svg>
+          ) : (
+            <svg className="w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+            </svg>
+          )}
+        </div>
+      </div>
+      <span className="text-neutral-600 dark:text-neutral-300">
+        {isDarkMode ? 'Oscuro' : 'Claro'}
+      </span>
+    </button>
+  )
+}
+
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { logout, refreshSession } = useAuth()
+  const { isDarkMode } = useAdminDarkMode()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showSessionWarning, setShowSessionWarning] = useState(false)
@@ -117,7 +154,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const SidebarContent = () => (
     <>
-      <div className="p-6 border-b border-neutral-800">
+      <div className="p-6 border-b border-neutral-700 dark:border-neutral-800">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-xl font-bold text-primary-400 font-display">{siteConfig.name}</span>
         </Link>
@@ -133,7 +170,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
               pathname === item.href
                 ? 'bg-primary-600 text-white'
-                : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+                : 'text-neutral-400 hover:bg-neutral-800 hover:text-white dark:text-neutral-400 dark:hover:bg-neutral-700 dark:hover:text-white'
             )}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -143,10 +180,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         ))}
       </nav>
-      <div className="p-4 border-t border-neutral-800 space-y-2">
+      <div className="p-4 border-t border-neutral-700 dark:border-neutral-800 space-y-2">
+        <DarkModeToggle />
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors w-full"
+          className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors w-full dark:text-neutral-400 dark:hover:text-white"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -156,7 +194,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link
           href="/"
           onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors"
+          className="flex items-center gap-3 px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors dark:text-neutral-400 dark:hover:text-white"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
@@ -168,12 +206,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   )
 
   return (
-    <div className="min-h-screen bg-neutral-100 flex">
+    <div className={cn('min-h-screen bg-neutral-100 flex transition-colors', isDarkMode && 'dark')}>
       {isMobile ? (
         <>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="fixed top-4 left-4 z-50 p-3 bg-neutral-900 text-white rounded-lg lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="fixed top-4 left-4 z-50 p-3 bg-neutral-900 dark:bg-neutral-800 text-white rounded-lg lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Abrir menú"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -187,7 +225,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className="absolute inset-0 bg-black/50"
                 onClick={() => setSidebarOpen(false)}
               />
-              <aside className="relative w-72 bg-neutral-900 text-white flex flex-col animate-slide-right">
+              <aside className="relative w-72 bg-neutral-900 dark:bg-neutral-800 text-white flex flex-col animate-slide-right">
                 <button
                   onClick={() => setSidebarOpen(false)}
                   className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white"
@@ -203,13 +241,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         </>
       ) : (
-        <aside className="w-64 bg-neutral-900 text-white flex-col flex-shrink-0 hidden md:flex fixed top-0 left-0 h-screen">
+        <aside className="w-64 bg-neutral-900 dark:bg-neutral-800 text-white flex-col flex-shrink-0 hidden md:flex fixed top-0 left-0 h-screen">
           <SidebarContent />
         </aside>
       )}
 
       <main className={cn(
-        'flex-1 p-6 pt-20 overflow-y-auto min-h-screen',
+        'flex-1 p-6 pt-20 overflow-y-auto min-h-screen transition-colors',
         !isMobile && 'md:ml-64'
       )}>
         <ProtectedRoute allowedRoles={['owner', 'admin', 'editor']}>
@@ -218,8 +256,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </main>
 
       {showSessionWarning && (
-        <div className="fixed bottom-4 right-4 bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-xl z-50 animate-slide-up">
-          <p className="text-amber-800 text-sm mb-3">
+        <div className="fixed bottom-4 right-4 bg-amber-50 dark:bg-amber-900 border border-amber-200 dark:border-amber-700 rounded-xl p-4 shadow-xl z-50 animate-slide-up">
+          <p className="text-amber-800 dark:text-amber-100 text-sm mb-3">
             Tu sesión expirará en 5 minutos. ¿Deseas continuar?
           </p>
           <div className="flex gap-2">
@@ -231,7 +269,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 bg-neutral-100 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-200 transition-colors"
+              className="px-3 py-1.5 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-sm font-medium rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors"
             >
               Cerrar sesión
             </button>
@@ -239,5 +277,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       )}
     </div>
+  )
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminDarkModeProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </AdminDarkModeProvider>
   )
 }

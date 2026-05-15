@@ -1,649 +1,181 @@
-import { Product } from '@/types'
+import { Product } from '@/types';
+import { prisma } from '@/lib/prisma';
 
-export const products: Product[] = [
-  {
-    id: '1',
-    name: 'Almendras Enteras Premium',
-    slug: 'almendras-enteras-premium',
-    description: 'Almendras enteras de origen argentino, seleccionadas cuidadosamente. Ricas en proteínas, fibra y grasas saludables. Perfectas para snacking o para incluir en tus recetas preferidas.',
-    shortDescription: 'Almendras premium seleccionadas, ricas en proteínas y grasas saludables',
-    price: 2850,
-    originalPrice: 3200,
-    category: 'frutos-secos',
-    subcategory: 'Almendras',
-    tags: ['premium', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/almendras-enteras-premium.png',
-      'https://images.unsplash.com/photo-1574856344991-aaa31b6f4ce3?w=800&q=80',
-    ],
-    ingredients: 'Almendras enteras 100%',
-    benefits: ['Ricas en vitamina E', 'Fuente de magnesio', 'Ayudan a controlar el colesterol', 'Energía sostenida'],
-    nutritionalInfo: {
-      servingSize: '30g',
-      calories: 170,
-      protein: '6g',
-      carbs: '6g',
-      fat: '15g',
-      fiber: '3.5g',
+export async function getAllProducts(): Promise<Product[]> {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    include: {
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+      tags: { include: { tag: true } },
+      category: true,
     },
-    stock: 45,
-    rating: 4.8,
-    reviews: 234,
-    featured: true,
-    promo: '20% OFF',
-    brand: 'Naturix',
-    organic: true,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-15',
-  },
-  {
-    id: '2',
-    name: 'Nueces de Castilla',
-    slug: 'nueces-de-castilla',
-    description: 'Nueces enteras de la mejor calidad. Excelente fuente de omega-3 y antioxidantes. Ideales para consumir solas o como acompañamiento de ensaladas y postres.',
-    shortDescription: 'Nueces ricas en omega-3 y antioxidantes',
-    price: 3200,
-    category: 'frutos-secos',
-    subcategory: 'Nueces',
-    tags: ['sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/nueces-de-castilla.png',
-      'https://images.unsplash.com/photo-1606923829579-0cb981a83e2e?w=800&q=80',
-    ],
-    ingredients: 'Nueces de Castilla 100%',
-    benefits: ['Alto contenido de omega-3', 'Ricas en antioxidantes', 'Mejoran la función cognitiva', 'Salud cardiovascular'],
-    nutritionalInfo: {
-      servingSize: '30g',
-      calories: 185,
-      protein: '4g',
-      carbs: '4g',
-      fat: '18g',
-      fiber: '2g',
-    },
-    stock: 38,
-    rating: 4.9,
-    reviews: 189,
-    featured: true,
-    brand: 'PureNut',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-20',
-  },
-  {
-    id: '3',
-    name: 'Pistachos Sin Cáscara',
-    slug: 'pistachos-sin-cascara',
-    description: 'Pistachos sin cáscara tostados ligeramente con sal marina. Un snack sofisticado y nutritivo que no puede faltar en tu mesa.',
-    shortDescription: 'Pistachos tostados con sal marina',
-    price: 4500,
-    originalPrice: 5000,
-    category: 'frutos-secos',
-    subcategory: 'Pistachos',
-    tags: ['premium', 'sin-tacc', 'vegano'],
-images: [
-      '/pistachos-sin-cascaras.png',
-      'https://images.unsplash.com/photo-1567206563064-6f14a07b56a0?w=800&q=80',
-    ],
-    ingredients: 'Pistachos, sal marina',
-    benefits: ['Ricos en potasio', 'Fuente de proteínas', 'Antioxidantes naturales', 'Bajo en calorías'],
-    nutritionalInfo: {
-      servingSize: '28g',
-      calories: 160,
-      protein: '6g',
-      carbs: '8g',
-      fat: '13g',
-      fiber: '3g',
-    },
-    stock: 28,
-    rating: 4.7,
-    reviews: 156,
-    featured: false,
-    promo: '10% OFF',
-    brand: 'GreenNut',
-    organic: true,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-02-01',
-  },
-  {
-    id: '4',
-    name: 'Mix de Frutos Secos Premium',
-    slug: 'mix-frutos-secos-premium',
-    description: 'Combinación equilibrada de almendras, nueces, pistachos y castañas de cajú. Perfecto para snacking o para decorar platos.',
-    shortDescription: 'Mix premium de 4 tipos de frutos secos',
-    price: 3800,
-    category: 'frutos-secos',
-    tags: ['premium', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/mix-de-frutos-secos-premium.png',
-      'https://images.unsplash.com/photo-1548567628-fa0b9634d3e6?w=800&q=80',
-    ],
-    ingredients: 'Almendras, nueces, pistachos, castañas de cajú',
-    benefits: ['Variedad de nutrientes', 'Energía prolongada', 'Saludable y delicioso'],
-    nutritionalInfo: {
-      servingSize: '30g',
-      calories: 175,
-      protein: '5g',
-      carbs: '7g',
-      fat: '16g',
-      fiber: '2.5g',
-    },
-    stock: 52,
-    rating: 4.6,
-    reviews: 312,
-    featured: true,
-    brand: 'NatureMix',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-25',
-  },
-  {
-    id: '5',
-    name: 'Castañas de Cajú',
-    slug: 'castanas-de-cajú',
-    description: 'Castañas de cajú naturales sin tostar. Suave textura y sabor delicado. Excelentes para recetas dulces y saladas.',
-    shortDescription: 'Castañas de cajú naturales',
-    price: 2900,
-    category: 'frutos-secos',
-    subcategory: 'Castañas',
-    tags: ['sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/castanas-de-caju.png',
-      'https://images.unsplash.com/photo-1612197527762-8cfb4b634b95?w=800&q=80',
-    ],
-    ingredients: 'Castañas de cajú 100%',
-    benefits: ['Fuente de cobre y zinc', 'Ricas en hierro', 'Buena fuente de magnesium'],
-    nutritionalInfo: {
-      servingSize: '28g',
-      calories: 165,
-      protein: '5g',
-      carbs: '9g',
-      fat: '13g',
-      fiber: '1g',
-    },
-    stock: 40,
-    rating: 4.5,
-    reviews: 98,
-    featured: false,
-    brand: 'NutriWorld',
-    organic: true,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-02-05',
-  },
-  {
-    id: '6',
-    name: 'Macadamia Australiana',
-    slug: 'macadamia-australiana',
-    description: 'Macadamia de origen australiano, reconocidas mundialmente por su sabor único y textura cremosa. Un lujo para tu snacking.',
-    shortDescription: 'Macadamia premium importada',
-    price: 5500,
-    category: 'frutos-secos',
-    subcategory: 'Macadamia',
-    tags: ['premium', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/macadamia-australiana.png',
-      'https://images.unsplash.com/photo-1543352634-99a5d50ae78e?w=800&q=80',
-    ],
-    ingredients: 'Macadamia 100%',
-    benefits: ['Ricas en ácidos grasos monoinsaturados', 'Vitaminas del grupo B', 'Minerales esenciales'],
-    nutritionalInfo: {
-      servingSize: '28g',
-      calories: 200,
-      protein: '2g',
-      carbs: '4g',
-      fat: '21g',
-      fiber: '2.5g',
-    },
-    stock: 22,
-    rating: 4.9,
-    reviews: 87,
-    featured: true,
-    brand: 'AussieNut',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-02-10',
-  },
-  {
-    id: '7',
-    name: 'Semillas de Chía Orgánicas',
-    slug: 'semillas-chia-organicas',
-    description: 'Semillas de chía orgánicas certificadas. Excelente fuente de omega-3, fibra y proteínas. Ideales para smoothies, bowls y recetas de pastelería.',
-    shortDescription: 'Chía orgánica rica en omega-3',
-    price: 1800,
-    category: 'semillas',
-    subcategory: 'Chía',
-    tags: ['organico', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/semillas-de-chia-organicas.png',
-      'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=800&q=80',
-    ],
-    ingredients: 'Semillas de chía orgánicas 100%',
-    benefits: ['Alto omega-3', 'Rica en fibra', 'Fuente de calcio', 'Proteína vegetal'],
-    nutritionalInfo: {
-      servingSize: '15g',
-      calories: 60,
-      protein: '3g',
-      carbs: '5g',
-      fat: '4g',
-      fiber: '5g',
-    },
-    stock: 65,
-    rating: 4.8,
-    reviews: 421,
-    featured: true,
-    promo: 'BESTSELLER',
-    brand: 'BioSeed',
-    organic: true,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-10',
-  },
-  {
-    id: '8',
-    name: 'Semillas de Lino Doradas',
-    slug: 'semillas-lino-doradas',
-    description: 'Semillas de lino doradas molidas para mayor absorción de nutrientes. Perfectas para agregar a yogures, smoothies o recetas de panadería.',
-    shortDescription: 'Lino dorado molido para mejor absorción',
-    price: 1500,
-    category: 'semillas',
-    subcategory: 'Lino',
-    tags: ['sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/semillas-de-lino-doradas.png',
-      'https://images.unsplash.com/photo-1574226516831-e1dff420e562?w=800&q=80',
-    ],
-    ingredients: 'Semillas de lino doradas molidas 100%',
-    benefits: ['Omega-3 vegetal', 'Rica en lignanos', 'Digestión saludable'],
-    nutritionalInfo: {
-      servingSize: '15g',
-      calories: 55,
-      protein: '2g',
-      carbs: '4g',
-      fat: '4g',
-      fiber: '4g',
-    },
-    stock: 58,
-    rating: 4.6,
-    reviews: 234,
-    featured: false,
-    brand: 'NutriSeed',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-18',
-  },
-  {
-    id: '9',
-    name: 'Mix de Semillas Premium',
-    slug: 'mix-semillas-premium',
-    description: 'Combinación de chía, lino, girasol y zapallo. Ideal para agregar crocancia y nutrición a tus comidas.',
-    shortDescription: 'Mix de 4 semillas para tu mesa',
-    price: 2100,
-    category: 'semillas',
-    tags: ['premium', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/mix-de-semillas-premium.png',
-      'https://images.unsplash.com/photo-1607350141856-ce7498f6b393?w=800&q=80',
-    ],
-    ingredients: 'Chía, lino, girasol, zapallo',
-    benefits: ['Variedad de nutrientes', 'Omega-3 y omega-6', 'Versátil en recetas'],
-    nutritionalInfo: {
-      servingSize: '20g',
-      calories: 90,
-      protein: '3g',
-      carbs: '5g',
-      fat: '7g',
-      fiber: '3g',
-    },
-    stock: 47,
-    rating: 4.5,
-    reviews: 167,
-    featured: false,
-    brand: 'SeedMix',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-02-08',
-  },
-  {
-    id: '10',
-    name: 'Semillas de Girasol',
-    slug: 'semillas-girasol',
-    description: 'Semillas de girasol peladas y tostadas ligeramente. Perfectas para snacking o como topping para ensaladas y bowls.',
-    shortDescription: 'Girasol tostado para snacking',
-    price: 1200,
-    category: 'semillas',
-    subcategory: 'Girasol',
-    tags: ['sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/semillas-de-girasol.png',
-      'https://images.unsplash.com/photo-1560807707-8cc77767d783?w=800&q=80',
-    ],
-    ingredients: 'Semillas de girasol 100%',
-    benefits: ['Vitamina E natural', 'Fuente de selenio', 'Proteínas vegetales'],
-    nutritionalInfo: {
-      servingSize: '20g',
-      calories: 110,
-      protein: '3g',
-      carbs: '5g',
-      fat: '9g',
-      fiber: '2g',
-    },
-    stock: 72,
-    rating: 4.4,
-    reviews: 189,
-    featured: false,
-    brand: 'SunSeed',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-22',
-  },
-  {
-    id: '11',
-    name: 'Harina de Almendra Premium',
-    slug: 'harina-almendra-premium',
-    description: 'Harina de almendra finamente molida, ideal para repostería sin gluten. Suave textura y sabor delicado.',
-    shortDescription: 'Harina de almendra para repostería',
-    price: 2400,
-    category: 'harinas',
-    subcategory: 'Almond',
-    tags: ['sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/harina-de-almendra-premium.png',
-      'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&q=80',
-    ],
-    ingredients: 'Almendra molida 100%',
-    benefits: ['Baja en carbohidratos', 'Alta en proteínas', 'Sin gluten natural'],
-    nutritionalInfo: {
-      servingSize: '30g',
-      calories: 160,
-      protein: '6g',
-      carbs: '6g',
-      fat: '14g',
-      fiber: '3g',
-    },
-    stock: 35,
-    rating: 4.7,
-    reviews: 298,
-    featured: true,
-    brand: 'AlmondFlour',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-12',
-  },
-  {
-    id: '12',
-    name: 'Harina de Coco Orgánica',
-    slug: 'harina-coco-organica',
-    description: 'Harina de coco orgánica, dessecada y finamente tamizada. Excelente alternativa sin gluten para repostería y panadería.',
-    shortDescription: 'Harina de coco orgánica sin gluten',
-    price: 1950,
-    category: 'harinas',
-    subcategories: ['Coco'],
-    tags: ['organico', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/harina-de-coco-organica.png',
-      'https://images.unsplash.com/photo-1559181567-c3190ca9be46?w=800&q=80',
-    ],
-    ingredients: 'Coco dessecado orgánico',
-    benefits: ['Alta en fibra', 'Baja en carbohidratos', 'Sin gluten'],
-    nutritionalInfo: {
-      servingSize: '25g',
-      calories: 60,
-      protein: '2g',
-      carbs: '8g',
-      fat: '2g',
-      fiber: '5g',
-    },
-    stock: 42,
-    rating: 4.5,
-    reviews: 156,
-    featured: false,
-    brand: 'CocoLife',
-    organic: true,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-02-03',
-  },
-  {
-    id: '13',
-    name: 'Harina Integral de Avena',
-    slug: 'harina-integral-avena',
-    description: 'Harina de avena integral, moleída finamente. Perfecta para panadería, pancakes y recetas saludables.',
-    shortDescription: 'Harina de avena integral para panadería',
-    price: 980,
-    category: 'harinas',
-    subcategories: ['Avena'],
-    tags: ['sin-tacc', 'vegano'],
-    images: [
-      '/harina-integral-de-avena.png',
-      'https://images.unsplash.com/photo-1587132137056-bfbf0166836e?w=800&q=80',
-    ],
-    ingredients: 'Avena integral moleída',
-    benefits: ['Fuente de fibra soluble', 'Energía sostenida', 'Sin gluten certificado'],
-    nutritionalInfo: {
-      servingSize: '40g',
-      calories: 150,
-      protein: '5g',
-      carbs: '27g',
-      fat: '3g',
-      fiber: '4g',
-    },
-    stock: 88,
-    rating: 4.4,
-    reviews: 312,
-    featured: false,
-    brand: 'OatPower',
-    organic: false,
-    glutenFree: false,
-    vegan: true,
-    keto: false,
-    createdAt: '2024-01-28',
-  },
-  
-  
-  {
-    id: '16',
-    name: 'Barra Proteica Crunch',
-    slug: 'barra-proteica-crunch',
-    description: 'Barra proteica con capas de chocolate y maní. 20g de proteína, perfecta para llevar.',
-    shortDescription: 'Barra proteica con maní y chocolate',
-    price: 850,
-    category: 'snacks',
-    subcategories: ['Barras'],
-    tags: ['sin-tacc', 'keto'],
-    images: [
-      '/barra-proteica-crunch.png',
-      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
-    ],
-    ingredients: 'Proteína de leche, chocolate, maní, glicerina',
-    benefits: ['20g proteína', 'Práctica para llevar', 'Sabor intenso'],
-    nutritionalInfo: {
-      servingSize: '60g',
-      calories: 230,
-      protein: '20g',
-      carbs: '25g',
-      fat: '8g',
-      fiber: '2g',
-    },
-    stock: 120,
-    rating: 4.3,
-    reviews: 234,
-    featured: false,
-    brand: 'ProteinBar',
-    organic: false,
-    glutenFree: true,
-    vegan: false,
-    keto: false,
-    createdAt: '2024-02-12',
-  },
-  {
-    id: '17',
-    name: 'Cookies Sin Azúcar',
-    slug: 'cookies-sin-azucar',
-    description: 'Galletas artesanales sin azúcar agregada, endulzadas con stevia. Sabor cacao.',
-    shortDescription: 'Galletas sin azúcar sabor cacao',
-    price: 1450,
-    category: 'snacks',
-    subcategories: ['Galletas'],
-    tags: ['sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/cookies-sin-azucar.png',
-      'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=800&q=80',
-    ],
-    ingredients: 'Harina de almendra, cacao, mantequilla de maní, stevia',
-    benefits: ['0g azúcar', 'Bajas en carbos', 'Sin harinas refinadas'],
-    nutritionalInfo: {
-      servingSize: '30g (2 galletas)',
-      calories: 140,
-      protein: '4g',
-      carbs: '6g',
-      fat: '12g',
-      fiber: '3g',
-    },
-    stock: 68,
-    rating: 4.4,
-    reviews: 189,
-    featured: false,
-    brand: 'SweetFree',
-    organic: false,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-02-15',
-  },
-  {
-    id: '18',
-    name: 'Endulzante Natural Stevia',
-    slug: 'endulzante-stevia-pura',
-    description: 'Stevia pura en polvo, 100% natural. 300 veces más dulce que el azúcar.',
-    shortDescription: 'Stevia pura en polvo 100 natural',
-    price: 1200,
-    category: 'endulzantes',
-    subcategories: ['Stevia'],
-    tags: ['organico', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/endulzante-natural-stevia.png',
-      'https://images.unsplash.com/photo-1571167366136-b57e0cc94b91?w=800&q=80',
-    ],
-    ingredients: 'Extracto de stevia rebaudiano A 100%',
-    benefits: ['0 calorías', 'No eleva glucosa', '300x más dulce'],
-    nutritionalInfo: {
-      servingSize: '0.1g',
-      calories: 0,
-      protein: '0g',
-      carbs: '0g',
-      fat: '0g',
-      fiber: '0g',
-    },
-    stock: 95,
-    rating: 4.8,
-    reviews: 567,
-    featured: true,
-    brand: 'PureSweet',
-    organic: true,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-01-02',
-  },
-  {
-    id: '19',
-    name: 'Granola Clásica Premium',
-    slug: 'granola-clasica-premium',
-    description: 'Granola artesanal con avena, miel y frutos secos. Crujiente y deliciosa.',
-    shortDescription: 'Granola artesanal con miel',
-    price: 1850,
-    category: 'granolas',
-    tags: ['sin-tacc', 'vegano'],
-    images: [
-      '/granola-clasica-premium.png',
-      'https://images.unsplash.com/photo-1571167366136-b57e0cc94b91?w=800&q=80',
-    ],
-    ingredients: 'Avena, miel, almendra, nuez, aceite de girasol',
-    benefits: ['Fibra natural', 'Energía prolongada', 'Desayuno completo'],
-    nutritionalInfo: {
-      servingSize: '45g',
-      calories: 190,
-      protein: '5g',
-      carbs: '28g',
-      fat: '7g',
-      fiber: '4g',
-    },
-    stock: 52,
-    rating: 4.6,
-    reviews: 345,
-    featured: true,
-    brand: 'MorningCrunch',
-    organic: false,
-    glutenFree: false,
-    vegan: false,
-    keto: false,
-    createdAt: '2024-01-20',
-  },
-  {
-    id: '20',
-    name: 'Té Verde Matcha Ceremonial',
-    slug: 'te-verde-matcha-ceremonial',
-    description: 'Matcha ceremonial de grado premium importado de Japón. Sabor umami intenso.',
-    shortDescription: 'Matcha japonés ceremonial premium',
-    price: 4200,
-    category: 'infusiones',
-    subcategories: ['Matcha'],
-    tags: ['organico', 'sin-tacc', 'vegano', 'keto'],
-    images: [
-      '/te-verde-matcha.png',
-      'https://images.unsplash.com/photo-1536599018102-9f803c140fc1?w=800&q=80',
-    ],
-    ingredients: 'Matcha en polvo 100%',
-    benefits: ['Antioxidantes potentes', 'Energía sostenida', 'Enfoque mental'],
-    nutritionalInfo: {
-      servingSize: '2g',
-      calories: 5,
-      protein: '0g',
-      carbs: '1g',
-      fat: '0g',
-      fiber: '0g',
-    },
-    stock: 32,
-    rating: 4.9,
-    reviews: 178,
-    featured: true,
-    promo: 'NEW',
-    brand: 'MatchaHouse',
-    organic: true,
-    glutenFree: true,
-    vegan: true,
-    keto: true,
-    createdAt: '2024-02-20',
-  },
-]
+    orderBy: { createdAt: 'desc' },
+  });
 
-export function getFeaturedProducts(): Product[] {
-  return products.filter(p => p.featured)
+  return products.map(adaptPrismaProduct);
 }
 
-export function getRelatedProducts(productId: string, category: string): Product[] {
-  return products
-    .filter(p => p.category === category && p.id !== productId)
-    .slice(0, 4)
+export async function getFeaturedProducts(): Promise<Product[]> {
+  const products = await prisma.product.findMany({
+    where: { isActive: true, isFeatured: true },
+    include: {
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+      tags: { include: { tag: true } },
+      category: true,
+    },
+    take: 8,
+  });
+
+  return products.map(adaptPrismaProduct);
+}
+
+export async function getRelatedProducts(productId: string, categoryId: string): Promise<Product[]> {
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      categoryId,
+      id: { not: productId },
+    },
+    include: {
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+      tags: { include: { tag: true } },
+      category: true,
+    },
+    take: 4,
+  });
+
+  return products.map(adaptPrismaProduct);
+}
+
+export async function getProductBySlug(slug: string): Promise<Product | null> {
+  const product = await prisma.product.findUnique({
+    where: { slug, isActive: true },
+    include: {
+      images: { orderBy: { sortOrder: 'asc' } },
+      tags: { include: { tag: true } },
+      category: true,
+      variants: { where: { isActive: true } },
+      attributes: true,
+    },
+  });
+
+  if (!product) return null;
+
+  return adaptPrismaProduct(product);
+}
+
+export async function getProductsByCategory(categorySlug: string): Promise<Product[]> {
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      category: { slug: categorySlug },
+    },
+    include: {
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+      tags: { include: { tag: true } },
+      category: true,
+    },
+  });
+
+  return products.map(adaptPrismaProduct);
+}
+
+export async function searchProducts(query: string): Promise<Product[]> {
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { description: { contains: query, mode: 'insensitive' } },
+        { shortDescription: { contains: query, mode: 'insensitive' } },
+      ],
+    },
+    include: {
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+      tags: { include: { tag: true } },
+      category: true,
+    },
+  });
+
+  return products.map(adaptPrismaProduct);
+}
+
+export async function getFilteredProducts(filters: {
+  categorySlug?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  isOrganic?: boolean;
+  isVegan?: boolean;
+  isGlutenFree?: boolean;
+  isKeto?: boolean;
+  search?: string;
+}): Promise<Product[]> {
+  const where: any = { isActive: true };
+
+  if (filters.categorySlug) {
+    where.category = { slug: filters.categorySlug };
+  }
+
+  if (filters.minPrice !== undefined) {
+    where.basePrice = { ...where.basePrice, gte: filters.minPrice };
+  }
+
+  if (filters.maxPrice !== undefined) {
+    where.basePrice = { ...where.basePrice, lte: filters.maxPrice };
+  }
+
+  if (filters.isOrganic) where.isOrganic = true;
+  if (filters.isVegan) where.isVegan = true;
+  if (filters.isGlutenFree) where.isGlutenFree = true;
+  if (filters.isKeto) where.isKeto = true;
+
+  if (filters.search) {
+    where.OR = [
+      { name: { contains: filters.search, mode: 'insensitive' } },
+      { description: { contains: filters.search, mode: 'insensitive' } },
+    ];
+  }
+
+  const products = await prisma.product.findMany({
+    where,
+    include: {
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+      tags: { include: { tag: true } },
+      category: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return products.map(adaptPrismaProduct);
+}
+
+function adaptPrismaProduct(product: any): Product {
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    description: product.description || '',
+    shortDescription: product.shortDescription || product.description?.substring(0, 100) || '',
+    price: Number(product.basePrice),
+    originalPrice: undefined,
+    category: product.category?.slug || '',
+    subcategory: undefined,
+    subcategories: undefined,
+    tags: product.tags?.map((t: any) => t.tag.name) || [],
+    images: product.images?.map((img: any) => img.url) || [],
+    ingredients: undefined,
+    benefits: undefined,
+    nutritionalInfo: undefined,
+    stock: product.stock,
+    rating: 4.5,
+    reviews: 10,
+    featured: product.isFeatured,
+    promo: undefined,
+    brand: product.brand,
+    organic: product.isOrganic,
+    glutenFree: product.isGlutenFree,
+    vegan: product.isVegan,
+    keto: product.isKeto,
+    createdAt: product.createdAt.toISOString(),
+  };
 }

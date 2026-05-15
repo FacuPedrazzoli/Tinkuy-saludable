@@ -1,6 +1,7 @@
 'use client'
 
 import { Component, ReactNode } from 'react'
+import { captureException, setUserContext } from '@/lib/sentry'
 
 interface Props {
   children: ReactNode
@@ -25,11 +26,32 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo)
+
+    const context = {
+      componentStack: errorInfo.componentStack,
+      digest: (error as Error & { digest?: string }).digest,
+    }
+
+    captureException(error, context)
+
+    if (typeof window !== 'undefined') {
+      const user = (window as Window & { __USER__?: { id?: string; email?: string; username?: string } }).__USER__
+      if (user) {
+        setUserContext(user)
+      }
+    }
   }
 
   handleReset = () => {
     this.setState({ hasError: false, error: undefined })
     this.props.onReset?.()
+  }
+
+  handleRetry = () => {
+    this.handleReset()
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
   }
 
   render() {
@@ -64,16 +86,16 @@ export class ErrorBoundary extends Component<Props, State> {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={this.handleReset}
+                onClick={this.handleRetry}
                 className="px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors"
               >
                 Intentar de nuevo
               </button>
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => window.location.href = '/'}
                 className="px-6 py-3 bg-neutral-200 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-300 transition-colors"
               >
-                Recargar página
+                Ir al inicio
               </button>
             </div>
             {this.state.error && process.env.NODE_ENV === 'development' && (

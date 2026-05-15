@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Image from 'next/image'
+import { useQuery, useMutation } from '@apollo/client/react'
 import { formatPrice } from '@/lib/utils'
 import { ImageUploadZone, ImageGallery } from '@/components/admin/ImageUpload'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { ToastContainer, useToast } from '@/components/Toast'
+import { GET_ADMIN_PRODUCTS, GET_CATEGORIES, CREATE_PRODUCT, UPDATE_PRODUCT, DELETE_PRODUCT, CREATE_IMAGE, DELETE_IMAGE } from '@/lib/graphql/queries'
+import { GraphQLProductsResult, GraphQLCategoriesResult, GraphQLProduct, GraphQLCategory } from '@/lib/graphql/types'
 
 interface Product {
   id: string
@@ -89,11 +92,11 @@ function SkeletonCard() {
     <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden animate-pulse">
       <div className="h-48 bg-neutral-200" />
       <div className="p-4 space-y-3">
-        <div className="h-5 w-3/4 bg-neutral-200 rounded" />
-        <div className="h-4 w-1/2 bg-neutral-200 rounded" />
+        <div className="h-5 w-3/4 bg-neutral-200 dark:bg-neutral-700 rounded" />
+        <div className="h-4 w-1/2 bg-neutral-200 dark:bg-neutral-700 rounded" />
         <div className="flex justify-between">
-          <div className="h-6 w-20 bg-neutral-200 rounded" />
-          <div className="h-6 w-16 bg-neutral-200 rounded" />
+          <div className="h-6 w-20 bg-neutral-200 dark:bg-neutral-700 rounded" />
+          <div className="h-6 w-16 bg-neutral-200 dark:bg-neutral-700 rounded" />
         </div>
       </div>
     </div>
@@ -116,38 +119,65 @@ export default function AdminProductsPage() {
   const modalRef = useFocusTrap(showModal)
   const toast = useToast()
 
-  const fetchProducts = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({ limit: '100' })
-      if (search) params.set('search', search)
-      if (categoryFilter) params.set('category', categoryFilter)
+  const { data: productsData, refetch: refetchProducts, loading: productsLoading, error: productsError } = useQuery<GraphQLProductsResult>(GET_ADMIN_PRODUCTS, {
+    variables: { take: 100, search: search || undefined, tagSlug: categoryFilter || undefined },
+  })
 
-      const res = await fetch(`/api/products?${params}`)
-      if (!res.ok) throw new Error('Error fetching products')
-      const data = await res.json()
-      setProducts(data.products || [])
-    } catch (err) {
-      setError('Error cargando productos')
-    } finally {
-      setLoading(false)
-    }
-  }, [search, categoryFilter])
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch('/api/categories')
-      if (!res.ok) throw new Error('Error fetching categories')
-      const data = await res.json()
-      setCategories(data.categories || [])
-    } catch (err) {
-      console.error('Error fetching categories:', err)
-    }
-  }, [])
+  const { data: categoriesData, loading: categoriesLoading, error: categoriesError } = useQuery<GraphQLCategoriesResult>(GET_CATEGORIES);
 
   useEffect(() => {
-    fetchProducts()
-    fetchCategories()
-  }, [fetchProducts, fetchCategories])
+    if (productsData?.products?.items) {
+      const adaptedProducts = (productsData.products.items as GraphQLProduct[]).map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        description: p.description,
+        short_description: null,
+        price: parseFloat(p.basePrice) || 0,
+        original_price: null,
+        stock: 0,
+        is_featured: false,
+        is_active: p.isActive,
+        is_organic: false,
+        is_gluten_free: false,
+        is_vegan: false,
+        is_keto: false,
+        brand: p.brand || null,
+        category_id: null,
+        categories: undefined,
+        product_images: p.images?.map((img) => ({
+          id: img.id,
+          url: img.url,
+          is_primary: false,
+        })),
+      })) as Product[]
+      setProducts(adaptedProducts)
+      setLoading(false)
+    }
+    if (!productsLoading) {
+      setLoading(false)
+    }
+  }, [productsData, productsLoading])
+
+  useEffect(() => {
+    if (categoriesData?.categories) {
+      setCategories((categoriesData.categories as GraphQLCategory[]).filter((c): c is GraphQLCategory => c !== null && c !== undefined).map(c => ({
+        id: c.id || '',
+        name: c.name || '',
+        slug: c.slug || '',
+      })))
+    }
+  }, [categoriesData])
+
+  const fetchProducts = useCallback(() => {
+    refetchProducts()
+  }, [refetchProducts])
+
+  const [createProduct] = useMutation(CREATE_PRODUCT)
+  const [updateProduct] = useMutation(UPDATE_PRODUCT)
+  const [deleteProduct] = useMutation(DELETE_PRODUCT)
+  const [createImage] = useMutation(CREATE_IMAGE)
+  const [deleteImage] = useMutation(DELETE_IMAGE)
 
   const handleSave = async () => {
     if (!editingProduct) return
@@ -182,44 +212,41 @@ export default function AdminProductsPage() {
     setSaving(true)
 
     try {
-      const url = editingProduct.id
-        ? `/api/products/${editingProduct.id}`
-        : '/api/products'
-      const method = editingProduct.id ? 'PUT' : 'POST'
-
-      const sanitizedData = {
+      const input = {
         name: editingProduct.name.trim().replace(/<[^>]*>/g, ''),
         slug: editingProduct.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
         description: editingProduct.description?.trim().replace(/<[^>]*>/g, '') || null,
-        short_description: editingProduct.short_description?.trim().replace(/<[^>]*>/g, '') || null,
-        price: editingProduct.price,
-        original_price: editingProduct.original_price || null,
-        category_id: editingProduct.category_id || null,
+        shortDescription: editingProduct.short_description?.trim().replace(/<[^>]*>/g, '') || null,
+        basePrice: editingProduct.price,
+        originalPrice: editingProduct.original_price || null,
+        categoryId: editingProduct.category_id || null,
         brand: editingProduct.brand?.trim().replace(/<[^>]*>/g, '') || null,
         ingredients: editingProduct.ingredients?.trim().replace(/<[^>]*>/g, '') || null,
         stock: editingProduct.stock,
-        is_featured: editingProduct.is_featured,
-        is_active: editingProduct.is_active,
-        is_organic: editingProduct.is_organic,
-        is_gluten_free: editingProduct.is_gluten_free,
-        is_vegan: editingProduct.is_vegan,
-        is_keto: editingProduct.is_keto,
+        isFeatured: editingProduct.is_featured,
+        isActive: editingProduct.is_active,
+        isOrganic: editingProduct.is_organic,
+        isGlutenFree: editingProduct.is_gluten_free,
+        isVegan: editingProduct.is_vegan,
+        isKeto: editingProduct.is_keto,
       }
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitizedData),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        const errorMessage = typeof data.error === 'string' ? data.error : 'Error saving product'
-
-        throw new Error(errorMessage)
+      let savedProduct
+      if (editingProduct.id) {
+        const result = await updateProduct({
+          variables: { id: editingProduct.id, input },
+        })
+        savedProduct = (result.data as { updateProduct?: GraphQLProduct })?.updateProduct
+      } else {
+        const result = await createProduct({
+          variables: { input },
+        })
+        savedProduct = (result.data as { createProduct?: GraphQLProduct })?.createProduct
       }
 
-      const savedProduct = await res.json()
+      if (!savedProduct) {
+        throw new Error('Error saving product')
+      }
 
       if (editingProduct.id) {
         const currentImageIds = new Set(productImages.map(img => img.id).filter(Boolean) as string[])
@@ -227,7 +254,7 @@ export default function AdminProductsPage() {
 
         for (const imageId of deletedImageIds) {
           try {
-            await fetch(`/api/products/images/${imageId}`, { method: 'DELETE' })
+            await deleteImage({ variables: { id: imageId } })
           } catch (err) {
             console.error('Error deleting image:', err)
           }
@@ -236,127 +263,17 @@ export default function AdminProductsPage() {
         for (let i = 0; i < productImages.length; i++) {
           const img = productImages[i]
           if (!img.id) {
-            await fetch('/api/products/images', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                product_id: editingProduct.id,
-                url: img.url,
-                is_primary: img.is_primary || i === 0,
-                sort_order: i,
-              }),
-            })
-          }
-        }
-      }
-
-      setShowModal(false)
-      setEditingProduct(null)
-      setProductImages([])
-      setInitialImageIds(new Set())
-      fetchProducts()
-    } catch (err) {
-      const error = err as Error
-      toast.error(error.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-    if (editingProduct.price <= 0) {
-      validationErrors.push('El precio debe ser mayor a 0')
-    }
-    if (editingProduct.slug && !/^[a-z0-9-]+$/.test(editingProduct.slug)) {
-      validationErrors.push('El slug solo puede contener letras minúsculas, números y guiones')
-    }
-
-    if (validationErrors.length > 0) {
-      toast.error(validationErrors[0])
-      return
-    }
-
-    if (saving) return
-    setSaving(true)
-
-    try {
-      const url = editingProduct.id
-        ? `/api/products/${editingProduct.id}`
-        : '/api/products'
-      const method = editingProduct.id ? 'PUT' : 'POST'
-
-      const sanitizedData = {
-        name: editingProduct.name.trim().replace(/<[^>]*>/g, ''),
-        slug: editingProduct.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-        description: editingProduct.description?.trim().replace(/<[^>]*>/g, '') || null,
-        short_description: editingProduct.short_description?.trim().replace(/<[^>]*>/g, '') || null,
-        price: editingProduct.price,
-        original_price: editingProduct.original_price || null,
-        category_id: editingProduct.category_id || null,
-        brand: editingProduct.brand?.trim().replace(/<[^>]*>/g, '') || null,
-        ingredients: editingProduct.ingredients?.trim().replace(/<[^>]*>/g, '') || null,
-        stock: editingProduct.stock,
-        is_featured: editingProduct.is_featured,
-        is_active: editingProduct.is_active,
-        is_organic: editingProduct.is_organic,
-        is_gluten_free: editingProduct.is_gluten_free,
-        is_vegan: editingProduct.is_vegan,
-        is_keto: editingProduct.is_keto,
-      }
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitizedData),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        const errorMessage = typeof data.error === 'string' ? data.error : 'Error saving product'
-        throw new Error(errorMessage)
-      }
-
-      const savedProduct = await res.json()
-
-      if (editingProduct.id) {
-        const currentImageIds = new Set(productImages.map(img => img.id).filter(Boolean) as string[])
-        const deletedImageIds = [...initialImageIds].filter(id => !currentImageIds.has(id))
-
-        for (const imageId of deletedImageIds) {
-          try {
-            const deleteRes = await fetch(`/api/products/images/${imageId}`, { method: 'DELETE' })
-            if (!deleteRes.ok) {
-              const errorData = await deleteRes.json().catch(() => ({}))
-              throw new Error(errorData.error || 'Error deleting image')
-            }
-          } catch (err) {
-            const error = err as Error
-            toast.error(`Error al eliminar imagen: ${error.message}`)
-            console.error('Error deleting image:', err)
-          }
-        }
-
-        for (let i = 0; i < productImages.length; i++) {
-          const img = productImages[i]
-          if (!img.id) {
-            try {
-              const uploadRes = await fetch('/api/products/images', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  product_id: editingProduct.id,
+            await createImage({
+              variables: {
+                input: {
+                  productId: editingProduct.id,
                   url: img.url,
-                  is_primary: img.is_primary || i === 0,
-                  sort_order: i,
-                }),
-              })
-              if (!uploadRes.ok) {
-                const errorData = await uploadRes.json().catch(() => ({}))
-                throw new Error(errorData.error || 'Error uploading image')
-              }
-            } catch (err) {
-              const error = err as Error
-              toast.error(`Error al subir imagen: ${error.message}`)
-              console.error('Error uploading image:', err)
-            }
+                  altText: null,
+                  sortOrder: i,
+                  isPrimary: img.is_primary || i === 0,
+                },
+              },
+            })
           }
         }
       }
@@ -378,8 +295,7 @@ export default function AdminProductsPage() {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return
 
     try {
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Error deleting product')
+      await deleteProduct({ variables: { id } })
       fetchProducts()
     } catch (err) {
       const error = err as Error
@@ -387,46 +303,37 @@ export default function AdminProductsPage() {
     }
   }
 
-  const openEdit = async (product: Product) => {
-    try {
-      const res = await fetch(`/api/products/${product.id}`)
-      if (!res.ok) throw new Error('Error fetching product')
-      const fullProduct = await res.json()
+  const openEdit = (product: Product) => {
+    const images = (product.product_images || []).map((img) => ({
+      url: img.url,
+      id: img.id,
+      is_primary: img.is_primary,
+    }))
 
-      const images = (fullProduct.product_images || []).map((img: { url: string; id: string; is_primary: boolean }) => ({
-        url: img.url,
-        id: img.id,
-        is_primary: img.is_primary,
-      }))
-
-      setEditingProduct({
-        id: fullProduct.id,
-        name: fullProduct.name,
-        slug: fullProduct.slug,
-        description: fullProduct.description || '',
-        short_description: fullProduct.short_description || '',
-        price: fullProduct.price,
-        original_price: fullProduct.original_price,
-        category_id: fullProduct.category_id || '',
-        brand: fullProduct.brand || '',
-        tags: fullProduct.tags || [],
-        ingredients: fullProduct.ingredients || '',
-        stock: fullProduct.stock,
-        is_featured: fullProduct.is_featured || false,
-        is_active: fullProduct.is_active !== false,
-        is_organic: fullProduct.is_organic || false,
-        is_gluten_free: fullProduct.is_gluten_free || false,
-        is_vegan: fullProduct.is_vegan || false,
-        is_keto: fullProduct.is_keto || false,
-        weight_options: fullProduct.weight_options || [100, 250, 500, 1000],
-      })
-      setProductImages(images)
-      setInitialImageIds(new Set(images.map((img: { id?: string }) => img.id).filter(Boolean) as string[]))
-      setShowModal(true)
-    } catch (err) {
-      console.error('Error opening edit:', err)
-      toast.error('Error al cargar el producto')
-    }
+    setEditingProduct({
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      description: product.description || '',
+      short_description: product.short_description || '',
+      price: product.price,
+      original_price: product.original_price,
+      category_id: product.category_id || '',
+      brand: product.brand || '',
+      tags: [],
+      ingredients: '',
+      stock: product.stock,
+      is_featured: product.is_featured,
+      is_active: product.is_active,
+      is_organic: product.is_organic,
+      is_gluten_free: product.is_gluten_free,
+      is_vegan: product.is_vegan,
+      is_keto: product.is_keto,
+      weight_options: [100, 250, 500, 1000],
+    })
+    setProductImages(images)
+    setInitialImageIds(new Set(images.map((img) => img.id).filter(Boolean) as string[]))
+    setShowModal(true)
   }
 
   const openNew = () => {
@@ -451,11 +358,7 @@ export default function AdminProductsPage() {
     const image = productImages.find(img => img.url === url)
     if (image?.id) {
       try {
-        const res = await fetch(`/api/products/images/${image.id}`, { method: 'DELETE' })
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}))
-          throw new Error(errorData.error || 'Error deleting image')
-        }
+        await deleteImage({ variables: { id: image.id } })
       } catch (err) {
         const error = err as Error
         toast.error(`Error al eliminar imagen: ${error.message}`)
@@ -466,9 +369,9 @@ export default function AdminProductsPage() {
   }
 
   const getStockBg = (stock: number) => {
-    if (stock >= 100) return 'bg-emerald-100 text-emerald-700'
-    if (stock >= 50) return 'bg-amber-100 text-amber-700'
-    return 'bg-red-100 text-red-700'
+    if (stock >= 100) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+    if (stock >= 50) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+    return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
   }
 
   return (
@@ -476,8 +379,8 @@ export default function AdminProductsPage() {
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900">Productos</h1>
-          <p className="text-neutral-500 mt-1">{products.length} productos</p>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Productos</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{products.length} productos</p>
         </div>
         <button
           onClick={openNew}
@@ -490,7 +393,7 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-neutral-100 p-4">
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -501,13 +404,13 @@ export default function AdminProductsPage() {
               placeholder="Buscar productos..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white transition-all"
             />
           </div>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white"
+            className="px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white bg-white"
           >
             <option value="">Todas las categorías</option>
             {categories.map((cat) => (
@@ -517,7 +420,7 @@ export default function AdminProductsPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2.5 rounded-xl transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
+              className={`p-2.5 rounded-xl transition-colors ${viewMode === 'grid' ? 'bg-primary-100 text-primary-600' : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600'}`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -525,7 +428,7 @@ export default function AdminProductsPage() {
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-2.5 rounded-xl transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
+              className={`p-2.5 rounded-xl transition-colors ${viewMode === 'table' ? 'bg-primary-100 text-primary-600' : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600'}`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -543,14 +446,14 @@ export default function AdminProductsPage() {
         <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
           <h3 className="text-lg font-semibold text-red-800 mb-2">Error al cargar</h3>
           <p className="text-red-600 mb-4">{error}</p>
-          <button onClick={fetchProducts} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+          <button onClick={fetchProducts} className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors">
             Reintentar
           </button>
         </div>
       ) : products.length === 0 ? (
         <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center">
           <h3 className="text-lg font-semibold text-neutral-900 mb-2">No hay productos</h3>
-          <p className="text-neutral-500 mb-6">Empezá agregando tu primer producto</p>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-6">Empezá agregando tu primer producto</p>
           <button onClick={openNew} className="px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium">
             Agregar Producto
           </button>
@@ -558,7 +461,7 @@ export default function AdminProductsPage() {
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product) => (
-            <div key={product.id} className="bg-white rounded-2xl border border-neutral-100 overflow-hidden hover:shadow-lg hover:border-neutral-200 transition-all group">
+            <div key={product.id} className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 overflow-hidden hover:shadow-lg dark:hover:shadow-xl hover:border-neutral-200 dark:hover:border-neutral-600 transition-all group">
               <div className="relative h-48 bg-gradient-to-br from-neutral-100 to-neutral-50 flex items-center justify-center">
                 {product.product_images?.[0]?.url ? (
                   <Image src={product.product_images[0].url} alt={product.name} fill className="object-cover" />
@@ -586,19 +489,19 @@ export default function AdminProductsPage() {
                   </button>
                 </div>
                 {!product.is_active && (
-                  <span className="absolute top-3 left-3 px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-lg">
+                  <span className="absolute top-3 left-3 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-lg">
                     Inactivo
                   </span>
                 )}
                 {product.is_featured && (
-                  <span className="absolute top-3 left-3 px-2 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-lg">
+                  <span className="absolute top-3 left-3 px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs font-medium rounded-lg">
                     Destacado
                   </span>
                 )}
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-neutral-900 truncate">{product.name}</h3>
-                <p className="text-sm text-neutral-500 truncate">{product.categories?.name || product.brand || 'Sin categoría'}</p>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 truncate">{product.categories?.name || product.brand || 'Sin categoría'}</p>
                 <div className="flex items-center justify-between mt-3">
                   <div>
                     <p className="text-lg font-bold text-neutral-900">{formatPrice(product.price)}</p>
@@ -617,17 +520,17 @@ export default function AdminProductsPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
           <table className="w-full">
-            <thead className="bg-neutral-50">
+            <thead className="bg-neutral-50 dark:bg-neutral-800">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Producto</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Categoría</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Precio</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Stock</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Estado</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900">Acciones</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Producto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Categoría</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Precio</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Stock</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Estado</th>
+                <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900 dark:text-white">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-700">
               {products.map((product) => (
                 <tr key={product.id} className="hover:bg-neutral-50 transition-colors">
                   <td className="px-6 py-4 flex items-center gap-3">
@@ -638,10 +541,10 @@ export default function AdminProductsPage() {
                     </div>
                     <div>
                       <p className="font-medium text-neutral-900">{product.name}</p>
-                      <p className="text-xs text-neutral-500">{product.brand || 'Sin marca'}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">{product.brand || 'Sin marca'}</p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-neutral-600">
+                  <td className="px-6 py-4 text-sm text-neutral-600 dark:text-neutral-300">
                     {product.categories?.name || '-'}
                   </td>
                   <td className="px-6 py-4">
@@ -655,8 +558,8 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-1">
-                      {!product.is_active && <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-lg font-medium">Inactivo</span>}
-                      {product.is_featured && <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-lg font-medium">Destacado</span>}
+                      {!product.is_active && <span className="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs rounded-lg font-medium">Inactivo</span>}
+                      {product.is_featured && <span className="px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs rounded-lg font-medium">Destacado</span>}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -687,10 +590,10 @@ export default function AdminProductsPage() {
       )}
 
       {showModal && editingProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" ref={modalRef}>
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-neutral-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-neutral-900">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4" ref={modalRef}>
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-neutral-100 dark:border-neutral-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
                 {editingProduct.id ? 'Editar Producto' : 'Nuevo Producto'}
               </h2>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-neutral-100 rounded-lg">
@@ -702,62 +605,62 @@ export default function AdminProductsPage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Nombre *</label>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Nombre *</label>
                   <input
                     type="text"
                     value={editingProduct.name}
                     onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                    className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Marca</label>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Marca</label>
                   <input
                     type="text"
                     value={editingProduct.brand}
                     onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                    className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Precio *</label>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Precio *</label>
                   <input
                     type="number"
                     value={editingProduct.price}
                     onChange={(e) => setEditingProduct({ ...editingProduct, price: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                    className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Precio Anterior</label>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Precio Anterior</label>
                   <input
                     type="number"
                     value={editingProduct.original_price || ''}
                     onChange={(e) => setEditingProduct({ ...editingProduct, original_price: parseFloat(e.target.value) || null })}
-                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                    className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
                     placeholder="Opcional"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Stock (unidades)</label>
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Stock (unidades)</label>
                   <input
                     type="number"
                     value={editingProduct.stock}
                     onChange={(e) => setEditingProduct({ ...editingProduct, stock: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                    className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Categoría</label>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Categoría</label>
                 <select
                   value={editingProduct.category_id}
                   onChange={(e) => setEditingProduct({ ...editingProduct, category_id: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white"
+                  className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white bg-white"
                 >
                   <option value="">Sin categoría</option>
                   {categories.map((cat) => (
@@ -767,22 +670,22 @@ export default function AdminProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Descripción</label>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Descripción</label>
                 <textarea
                   value={editingProduct.description}
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
+                  className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Descripción Corta</label>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Descripción Corta</label>
                 <input
                   type="text"
                   value={editingProduct.short_description}
                   onChange={(e) => setEditingProduct({ ...editingProduct, short_description: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  className="w-full px-4 py-2.5 border border-neutral-200 dark:border-neutral-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
                   placeholder="Breve descripción para cards"
                 />
               </div>
@@ -795,7 +698,7 @@ export default function AdminProductsPage() {
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_active: e.target.checked })}
                     className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-sm font-medium text-neutral-700">Activo</span>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Activo</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -804,7 +707,7 @@ export default function AdminProductsPage() {
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_featured: e.target.checked })}
                     className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-sm font-medium text-neutral-700">Destacado</span>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Destacado</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -813,7 +716,7 @@ export default function AdminProductsPage() {
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_organic: e.target.checked })}
                     className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-sm font-medium text-neutral-700">Orgánico</span>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Orgánico</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -822,7 +725,7 @@ export default function AdminProductsPage() {
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_vegan: e.target.checked })}
                     className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-sm font-medium text-neutral-700">Vegano</span>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Vegano</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -831,7 +734,7 @@ export default function AdminProductsPage() {
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_gluten_free: e.target.checked })}
                     className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-sm font-medium text-neutral-700">Sin Gluten</span>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Sin Gluten</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -840,12 +743,12 @@ export default function AdminProductsPage() {
                     onChange={(e) => setEditingProduct({ ...editingProduct, is_keto: e.target.checked })}
                     className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                   />
-                  <span className="text-sm font-medium text-neutral-700">Keto</span>
+                  <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Keto</span>
                 </label>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">Imágenes del Producto</label>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">Imágenes del Producto</label>
                 <ImageUploadZone onUploadComplete={handleImageUpload} className="mb-3" />
                 {productImages.length > 0 && (
                   <ImageGallery

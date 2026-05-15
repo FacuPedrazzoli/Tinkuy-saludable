@@ -1,10 +1,8 @@
 import { MetadataRoute } from 'next'
-import { products } from '@/data/products'
-import { blogPosts } from '@/data/blog'
-import { categories } from '@/data/categories'
+import { getAllProducts } from '@/data/products'
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
 
   const staticPages = [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 1 },
@@ -15,12 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/faq`, lastModified: new Date(), changeFrequency: 'monthly' as const, priority: 0.4 },
   ]
 
-  const categoryPages = categories.map((cat) => ({
-    url: `${baseUrl}/catalog?category=${cat.slug}`,
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.75,
-  }))
+  const products = await getAllProducts()
 
   const productPages = products.map((product) => ({
     url: `${baseUrl}/product/${product.slug}`,
@@ -29,12 +22,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }))
 
-  const blogPages = blogPosts.map((post) => ({
-    url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: new Date(post.date),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-  }))
-
-  return [...staticPages, ...categoryPages, ...productPages, ...blogPages]
+  return [...staticPages, ...productPages]
 }

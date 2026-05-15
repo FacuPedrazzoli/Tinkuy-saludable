@@ -43,7 +43,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
   const post = getBlogPostBySlug(params.slug)
   if (!post) notFound()
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
 
   const articleSchema = {
     '@context': 'https://schema.org',

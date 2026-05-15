@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
+import { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { ProductGrid } from '@/components/ProductGrid'
@@ -72,10 +72,6 @@ function CatalogContent() {
       skip: (currentPage - 1) * 24,
     },
     skip: false,
-    onError: (error) => {
-      console.error('Products query error:', error);
-      setQueryError('Error al cargar los productos. Por favor, intentá de nuevo.');
-    },
   });
 
   useEffect(() => {

@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, isLoading, isAuthenticated } = useAuth()
+  const { user, isLoading, isAuthenticated, logout } = useAuth()
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false)
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
       return
     }
 
-    const timeoutMs = 25 * 60 * 1000
+    const timeoutMs = 30 * 60 * 1000
     let warningTimeout: NodeJS.Timeout
     let logoutTimeout: NodeJS.Timeout
 
@@ -43,8 +43,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
       logoutTimeout = setTimeout(() => {
         setShowTimeoutWarning(false)
-        document.cookie = 'auth_token=; path=/; max-age=0'
-        document.cookie = 'auth_user=; path=/; max-age=0'
+        logout()
         router.push('/login?reason=session_expired')
       }, timeoutMs + 60000)
     }
@@ -63,7 +62,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
         document.removeEventListener(event, resetTimers)
       })
     }
-  }, [isLoading, isAuthenticated, user, pathname, router, allowedRoles])
+  }, [isLoading, isAuthenticated, user, pathname, router, allowedRoles, logout])
 
   useEffect(() => {
     if (!showTimeoutWarning) return

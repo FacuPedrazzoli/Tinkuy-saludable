@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { TIMEOUTS } from '@/lib/constants'
 
 interface ExitIntentPopupProps {
   discountCode?: string
@@ -20,7 +21,7 @@ export function ExitIntentPopup({
       if (!isDismissed) {
         setIsVisible(true)
       }
-    }, 15000)
+    }, TIMEOUTS.EXIT_INTENT)
 
     return () => clearTimeout(timer)
   }, [isDismissed])

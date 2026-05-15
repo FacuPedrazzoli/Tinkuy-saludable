@@ -1,14 +1,15 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { LOCALE, CURRENCY } from '@/lib/constants'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
 export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('es-AR', {
+  return new Intl.NumberFormat(LOCALE, {
     style: 'currency',
-    currency: 'ARS',
+    currency: CURRENCY,
     minimumFractionDigits: 0,
   }).format(price)
 }

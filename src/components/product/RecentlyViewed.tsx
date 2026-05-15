@@ -2,12 +2,14 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRecentlyViewedStore, useHydrationStore } from '@/lib/store'
+import { Product } from '@/types'
+import { useRecentlyViewedStore } from '@/lib/store'
+import { useHydration } from '@/hooks/useHydration'
 import { formatPrice } from '@/lib/utils'
 import { validateProductImage } from '@/lib/productImages'
 import { useMemo } from 'react'
 
-function RecentlyViewedItem({ product }: { product: typeof products[number] }) {
+function RecentlyViewedItem({ product }: { product: Product }) {
   const productImage = useMemo(() => validateProductImage(
     product.images[0],
     product.category,
@@ -41,12 +43,12 @@ function RecentlyViewedItem({ product }: { product: typeof products[number] }) {
 }
 
 export function RecentlyViewed() {
-  const isHydrated = useHydrationStore((state) => state.isHydrated)
+  const hydrated = useHydration()
   const products = useRecentlyViewedStore((state) => state.products)
 
   const displayedProducts = useMemo(() => products.slice(0, 4), [products])
 
-  if (!isHydrated || displayedProducts.length === 0) return null
+  if (!hydrated || displayedProducts.length === 0) return null
 
   return (
     <section className="mt-16">

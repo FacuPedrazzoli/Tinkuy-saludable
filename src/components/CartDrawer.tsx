@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useCartStore, calculatePrice, Weight, useHydrationStore } from '@/lib/store'
+import { useCartStore, calculatePrice, Weight } from '@/lib/store'
+import { useHydration } from '@/hooks/useHydration'
 import Image from 'next/image'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
@@ -9,6 +10,7 @@ import { useMutation, useQuery } from '@apollo/client/react'
 import { GET_MY_CART, UPDATE_CART_ITEM, REMOVE_FROM_CART, CLEAR_CART } from '@/lib/graphql/queries'
 import { syncCartStoreFromGraphQL, getAuthToken, type GraphQLCart, type GraphQLCartItem } from '@/lib/cartUtils'
 import { ToastContainer, useToast } from '@/components/Toast'
+import { CartSkeleton } from '@/components/checkout/CartSkeleton'
 
 interface AddToCartInput {
   productId: string
@@ -26,7 +28,7 @@ export function CartDrawer() {
   const [token, setToken] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const previousActiveElement = useRef<HTMLElement | null>(null)
-  const isHydrated = useHydrationStore((state) => state.isHydrated)
+  const hydrated = useHydration()
   const { items, isOpen, setCartOpen, removeItem, updateQuantity, getTotal, clearCart } = useCartStore()
   const toast = useToast()
 
@@ -67,7 +69,7 @@ export function CartDrawer() {
     },
   });
 
-  const handleUpdateQuantity = useCallback(async (productId: string, quantity: number, weight: number) => {
+  const handleUpdateQuantity = useCallback(async (productId: string, quantity: number, weight: Weight) => {
     const previousItems = useCartStore.getState().items
     updateQuantity(productId, quantity, weight)
     if (!token) return
@@ -86,7 +88,7 @@ export function CartDrawer() {
     }
   }, [token, cartData?.myCart?.id, updateQuantity, updateCartItemMutation, refetchCart, toast])
 
-  const handleRemoveItem = useCallback(async (productId: string, weight: number) => {
+  const handleRemoveItem = useCallback(async (productId: string, weight: Weight) => {
     const previousItems = useCartStore.getState().items
     const item = items.find((i) => i.product.id === productId && i.weight === weight)
     removeItem(productId, weight)
@@ -162,7 +164,7 @@ export function CartDrawer() {
               <h2 id="cart-title" className="text-xl font-bold font-display">Tu Carrito</h2>
               <button
                 onClick={() => setCartOpen(false)}
-                className="p-2 text-neutral-500 hover:text-neutral-700 transition-colors"
+                className="p-2 text-neutral-600 hover:text-neutral-800 transition-colors"
                 aria-label="Cerrar carrito"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -171,12 +173,12 @@ export function CartDrawer() {
               </button>
             </div>
 
-            {items.length === 0 ? (
+            {items.length === 0 && !cartLoading ? (
               <div className="flex-1 flex flex-col items-center justify-center p-6">
                 <svg className="w-24 h-24 text-neutral-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
-                <p className="text-neutral-500 text-center mb-6">Tu carrito está vacío</p>
+                <p className="text-neutral-600 text-center mb-6">Tu carrito está vacío</p>
                 <Link
                   href="/catalog"
                   onClick={() => setCartOpen(false)}
@@ -184,6 +186,10 @@ export function CartDrawer() {
                 >
                   Explorar Productos
                 </Link>
+              </div>
+            ) : cartLoading && items.length === 0 ? (
+              <div className="flex-1 overflow-y-auto p-6">
+                <CartSkeleton count={3} />
               </div>
             ) : (
               <>
@@ -208,7 +214,7 @@ export function CartDrawer() {
                         <div className="flex items-center gap-3 mt-2">
                           <div className="flex items-center border border-neutral-200 rounded-lg">
                             <button
-                              onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1, item.weight)}
+                              onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1, item.weight as Weight)}
                               className="w-11 h-11 flex items-center justify-center text-neutral-500 hover:text-neutral-700 transition-colors"
                               aria-label="Reducir cantidad"
                             >
@@ -218,7 +224,7 @@ export function CartDrawer() {
                               {item.quantity}
                             </span>
                             <button
-                              onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1, item.weight)}
+                              onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1, item.weight as Weight)}
                               className="w-11 h-11 flex items-center justify-center text-neutral-500 hover:text-neutral-700 transition-colors"
                               aria-label="Aumentar cantidad"
                             >
@@ -226,9 +232,9 @@ export function CartDrawer() {
                             </button>
                           </div>
                           <button
-                            onClick={() => handleRemoveItem(item.product.id, item.weight)}
+                            onClick={() => handleRemoveItem(item.product.id, item.weight as Weight)}
                             disabled={removingId === `${item.product.id}-${item.weight}`}
-                            className="text-neutral-400 hover:text-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center justify-center w-11 h-11 text-neutral-500 hover:text-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:bg-red-50"
                             aria-label="Eliminar producto"
                           >
                             {removingId === `${item.product.id}-${item.weight}` ? (

@@ -3,24 +3,85 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useQuery } from '@apollo/client/react'
+import { GET_PRODUCTS } from '@/lib/graphql/queries'
 import { Product } from '@/types'
 import { formatPrice } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { TIMEOUTS } from '@/lib/constants'
+
+interface ProductsQueryResult {
+  products: {
+    items: Array<{
+      id: string
+      name: string
+      slug: string
+      description: string | null
+      basePrice: string
+      images: Array<{ url: string }>
+      tags: Array<{ tag: { name: string } }>
+    }>
+    count: number
+  }
+}
 
 interface SearchModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
+const QUICK_FILTERS = [
+  { id: 'is_vegan', label: 'Vegano', icon: '🥬' },
+  { id: 'is_gluten_free', label: 'Sin TACC', icon: '🌾' },
+  { id: 'is_organic', label: 'Orgánico', icon: '🌱' },
+  { id: 'is_keto', label: 'Keto', icon: '🥑' },
+]
+
 export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [results, setResults] = useState<Product[]>([])
-  const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const previousActiveElement = useRef<HTMLElement | null>(null)
   const router = useRouter()
+
+  const { data: productsData, loading } = useQuery<ProductsQueryResult>(GET_PRODUCTS, {
+    variables: {
+      search: debouncedQuery || undefined,
+      isVisible: true,
+      take: 6,
+    },
+    skip: !debouncedQuery.trim() && !activeFilter,
+  })
+
+  const results: Product[] = productsData?.products.items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    slug: item.slug,
+    description: item.description || '',
+    shortDescription: item.description?.substring(0, 100) || '',
+    price: parseFloat(item.basePrice) || 0,
+    category: '',
+    subcategory: undefined,
+    subcategories: undefined,
+    tags: item.tags?.map((t) => t.tag?.name).filter(Boolean) || [],
+    images: item.images?.map((img) => img?.url).filter(Boolean) || [],
+    ingredients: undefined,
+    benefits: undefined,
+    nutritionalInfo: undefined,
+    stock: 100,
+    rating: 4.5,
+    reviews: 10,
+    featured: false,
+    promo: undefined,
+    brand: undefined,
+    organic: false,
+    glutenFree: false,
+    vegan: false,
+    keto: false,
+    createdAt: new Date().toISOString(),
+  })) || []
 
   useEffect(() => {
     if (isOpen) {
@@ -31,7 +92,6 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       document.body.style.overflow = ''
       setQuery('')
       setDebouncedQuery('')
-      setResults([])
       setSelectedIndex(-1)
       previousActiveElement.current?.focus()
     }
@@ -40,7 +100,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query)
-    }, 300)
+    }, TIMEOUTS.SEARCH_DEBOUNCE)
     return () => {
       clearTimeout(timer)
     }
@@ -51,28 +111,6 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       document.body.style.overflow = ''
     }
   }, [isOpen])
-
-  useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      setResults([])
-      return
-    }
-
-    const fetchResults = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(`/api/products/catalog?search=${encodeURIComponent(debouncedQuery)}&limit=6`)
-        const data = await res.json()
-        setResults(data.products || [])
-      } catch {
-        setResults([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchResults()
-  }, [debouncedQuery])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -110,7 +148,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       <div className="absolute inset-x-4 top-[15%] mx-auto max-w-2xl">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden animate-slide-down">
           <div className="flex items-center border-b border-neutral-100 px-4">
-            <svg className="w-5 h-5 text-neutral-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-neutral-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -120,18 +158,38 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Buscar productos..."
-              className="flex-1 px-4 py-4 text-lg outline-none placeholder:text-neutral-400"
+              className="flex-1 px-4 py-4 text-lg outline-none placeholder:text-neutral-500"
               aria-label="Buscar productos"
             />
             <button
               onClick={onClose}
-              className="p-2 text-neutral-400 hover:text-neutral-600"
+              className="p-2 text-neutral-500 hover:text-neutral-700"
               aria-label="Cerrar búsqueda"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          </div>
+
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-100 overflow-x-auto scrollbar-hide">
+            <span className="text-xs text-neutral-500 whitespace-nowrap">Filtros:</span>
+            {QUICK_FILTERS.map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => setActiveFilter(activeFilter === filter.id ? null : filter.id)}
+                className={cn(
+                  'flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors',
+                  activeFilter === filter.id
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                )}
+                aria-pressed={activeFilter === filter.id}
+              >
+                <span>{filter.icon}</span>
+                <span>{filter.label}</span>
+              </button>
+            ))}
           </div>
 
           <div className="max-h-[60vh] overflow-y-auto">
@@ -141,13 +199,17 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               </div>
             )}
 
-            {!loading && debouncedQuery && results.length === 0 && (
+            {!loading && results.length === 0 && (debouncedQuery || activeFilter) && (
               <div className="p-8 text-center">
                 <svg className="w-12 h-12 text-neutral-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-neutral-500">No se encontraron resultados</p>
-                <p className="text-sm text-neutral-400 mt-1">Intentá con otros términos</p>
+                <p className="text-sm text-neutral-500 mt-1">
+                  {activeFilter
+                    ? `Probá sin el filtro ${QUICK_FILTERS.find(f => f.id === activeFilter)?.label}`
+                    : 'Intentá con otros términos'}
+                </p>
               </div>
             )}
 
@@ -180,7 +242,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-neutral-900 line-clamp-1">{product.name}</h4>
                         <p className="text-sm text-neutral-500">{product.category}</p>
-                        <p className="text-primary-600 font-semibold font-mono">{formatPrice(product.price)} <span className="text-neutral-400 text-xs font-normal">por 100g</span></p>
+                        <p className="text-primary-600 font-semibold font-mono">{formatPrice(product.price)} <span className="text-neutral-500 text-xs font-normal">por 100g</span></p>
                       </div>
                       <svg className="w-5 h-5 text-neutral-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -195,18 +257,25 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               <div className="p-3 border-t border-neutral-100 bg-neutral-50">
                 <button
                   onClick={() => {
-                    router.push(`/catalog?search=${encodeURIComponent(debouncedQuery)}`)
+                    const params = new URLSearchParams()
+                    if (debouncedQuery) params.set('search', debouncedQuery)
+                    if (activeFilter) params.set(activeFilter, 'true')
+                    router.push(`/catalog?${params.toString()}`)
                     onClose()
                   }}
                   className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-medium"
                 >
-                  Ver todos los resultados para "{debouncedQuery}"
+                  {activeFilter
+                    ? `Ver todos los resultados ${QUICK_FILTERS.find(f => f.id === activeFilter)?.label}s`
+                    : debouncedQuery
+                      ? `Ver todos los resultados para "${debouncedQuery}"`
+                      : 'Ver todos los resultados'}
                 </button>
               </div>
             )}
           </div>
 
-          <div className="p-3 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between text-xs text-neutral-400">
+          <div className="p-3 border-t border-neutral-100 bg-neutral-50 flex items-center justify-between text-xs text-neutral-500">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
                 <kbd className="px-1.5 py-0.5 bg-white rounded border border-neutral-200 font-mono">↑</kbd>

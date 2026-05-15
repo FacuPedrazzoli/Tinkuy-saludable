@@ -15,11 +15,11 @@ export default function CartPage() {
   }, [])
 
   const handleUpdateQuantity = useCallback((productId: string, quantity: number, weight: number) => {
-    updateQuantity(productId, quantity, weight)
+    updateQuantity(productId, quantity, weight as Weight)
   }, [updateQuantity])
 
   const handleRemoveItem = useCallback((productId: string, weight: number) => {
-    removeItem(productId, weight)
+    removeItem(productId, weight as Weight)
   }, [removeItem])
 
   const handleClearCart = useCallback(() => {

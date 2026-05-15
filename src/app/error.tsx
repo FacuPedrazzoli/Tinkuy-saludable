@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { captureException, setUserContext } from '@/lib/sentry'
 
 export default function Error({
   error,
@@ -10,7 +11,15 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('Error:', error)
+    const context = { digest: error.digest }
+    captureException(error, context)
+
+    if (typeof window !== 'undefined') {
+      const user = (window as Window & { __USER__?: { id?: string; email?: string; username?: string } }).__USER__
+      if (user) {
+        setUserContext(user)
+      }
+    }
   }, [error])
 
   return (

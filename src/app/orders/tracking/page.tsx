@@ -1,14 +1,10 @@
-import { Metadata } from 'next'
+'use client'
+
 import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@apollo/client/react'
 import { GET_GUEST_ORDERS } from '@/lib/graphql/queries'
 import { GraphQLGuestOrdersResult } from '@/lib/graphql/types'
-
-export const metadata: Metadata = {
-  title: 'Seguimiento de Pedido',
-  description: 'Rastrea el estado de tu pedido.',
-}
 
 interface OrderStatus {
   status: string

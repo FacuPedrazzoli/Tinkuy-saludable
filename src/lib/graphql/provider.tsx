@@ -1,10 +1,17 @@
 'use client';
 
-import { ApolloClient, InMemoryCache, createHttpLink, from, ServerError } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
 import { ApolloProvider as BaseApolloProvider } from '@apollo/client/react';
 import { setContext } from '@apollo/client/link/context';
-import { onError } from '@apollo/client/link/error';
+import { ErrorLink } from '@apollo/client/link/error';
+import { CombinedGraphQLErrors, ServerError } from '@apollo/client/errors';
 import { useMemo } from 'react';
+
+function getCookieValue(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
 
 function createApolloClient() {
   const httpLink = createHttpLink({
@@ -15,7 +22,7 @@ function createApolloClient() {
     if (typeof window === 'undefined') {
       return { headers };
     }
-    const token = localStorage.getItem('auth_token');
+    const token = getCookieValue('graphql_token');
     return {
       headers: {
         ...headers,
@@ -24,26 +31,23 @@ function createApolloClient() {
     };
   });
 
-  const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
-    if (graphQLErrors) {
-      for (const err of graphQLErrors) {
+  const errorLink = new ErrorLink(({ error, operation, forward }) => {
+    if (CombinedGraphQLErrors.is(error)) {
+      for (const err of error.errors) {
         console.error(`[GraphQL Error]:`, {
           message: err.message,
           path: err.path,
           operation: operation.operationName,
         });
         if (err.extensions?.code === 'UNAUTHENTICATED') {
-          document.cookie = 'auth_token=; path=/; max-age=0';
-          document.cookie = 'auth_user=; path=/; max-age=0';
+          document.cookie = 'graphql_token=; path=/; max-age=0';
           window.dispatchEvent(new Event('auth_error'));
         }
       }
-    }
-    if (networkError) {
-      console.error(`[Network Error]:`, networkError);
-      if (networkError.statusCode === 401) {
-        document.cookie = 'auth_token=; path=/; max-age=0';
-        document.cookie = 'auth_user=; path=/; max-age=0';
+    } else if (error instanceof ServerError) {
+      console.error(`[Network Error]:`, error);
+      if (error.statusCode === 401) {
+        document.cookie = 'graphql_token=; path=/; max-age=0';
         window.dispatchEvent(new Event('auth_error'));
       }
     }

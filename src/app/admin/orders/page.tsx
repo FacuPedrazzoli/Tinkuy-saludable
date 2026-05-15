@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useQuery, useMutation } from '@apollo/client/react'
+import { GET_ORDERS, GET_ORDER, UPDATE_ORDER_STATUS } from '@/lib/graphql/queries'
 import { formatPrice } from '@/lib/utils'
 import { ToastContainer, useToast } from '@/components/Toast'
 
@@ -41,13 +43,50 @@ interface OrderItem {
   total_price: number
 }
 
+interface GraphQLOrderItem {
+  id: string
+  name: string
+  price: number
+  quantity: number
+  total: number
+}
+
+interface GraphQLOrder {
+  id: string
+  orderNumber?: string
+  customerName?: string
+  customerEmail?: string
+  totalAmount: number
+  subtotalAmount?: number
+  shippingCost?: number
+  discountAmount?: number
+  status: string
+  paymentStatus: string
+  paymentMethod?: string
+  notes?: string
+  shippingAddress?: ShippingAddress
+  createdAt: string
+  items?: GraphQLOrderItem[]
+}
+
+interface GraphQLOrdersData {
+  orders: {
+    items: GraphQLOrder[]
+    count: number
+  }
+}
+
+interface GraphQLOrderData {
+  order: GraphQLOrder
+}
+
 const statusConfig: Record<string, { label: string; es: string; color: string; bgColor: string; dot: string }> = {
-  pending: { label: 'Pendiente', es: 'Pendiente', color: 'text-amber-700', bgColor: 'bg-amber-50', dot: 'bg-amber-500' },
-  paid: { label: 'Pagado', es: 'Pagado', color: 'text-emerald-700', bgColor: 'bg-emerald-50', dot: 'bg-emerald-500' },
-  preparing: { label: 'Preparando', es: 'Preparando', color: 'text-blue-700', bgColor: 'bg-blue-50', dot: 'bg-blue-500' },
-  shipped: { label: 'Enviado', es: 'Enviado', color: 'text-purple-700', bgColor: 'bg-purple-50', dot: 'bg-purple-500' },
-  delivered: { label: 'Entregado', es: 'Entregado', color: 'text-teal-700', bgColor: 'bg-teal-50', dot: 'bg-teal-500' },
-  cancelled: { label: 'Cancelado', es: 'Cancelado', color: 'text-red-700', bgColor: 'bg-red-50', dot: 'bg-red-500' },
+  pending: { label: 'Pendiente', es: 'Pendiente', color: 'text-amber-700 dark:text-amber-300', bgColor: 'bg-amber-50 dark:bg-amber-900/30', dot: 'bg-amber-500' },
+  paid: { label: 'Pagado', es: 'Pagado', color: 'text-emerald-700 dark:text-emerald-300', bgColor: 'bg-emerald-50 dark:bg-emerald-900/30', dot: 'bg-emerald-500' },
+  preparing: { label: 'Preparando', es: 'Preparando', color: 'text-blue-700 dark:text-blue-300', bgColor: 'bg-blue-50 dark:bg-blue-900/30', dot: 'bg-blue-500' },
+  shipped: { label: 'Enviado', es: 'Enviado', color: 'text-purple-700 dark:text-purple-300', bgColor: 'bg-purple-50 dark:bg-purple-900/30', dot: 'bg-purple-500' },
+  delivered: { label: 'Entregado', es: 'Entregado', color: 'text-teal-700 dark:text-teal-300', bgColor: 'bg-teal-50 dark:bg-teal-900/30', dot: 'bg-teal-500' },
+  cancelled: { label: 'Cancelado', es: 'Cancelado', color: 'text-red-700 dark:text-red-300', bgColor: 'bg-red-50 dark:bg-red-900/30', dot: 'bg-red-500' },
 }
 
 const paymentConfig: Record<string, { label: string; es: string; color: string; bgColor: string }> = {
@@ -77,9 +116,6 @@ function SkeletonRow() {
 }
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -87,25 +123,21 @@ export default function AdminOrdersPage() {
   const statusUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const toast = useToast()
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      let url = '/api/orders?'
-      if (filterStatus) url += `status=${filterStatus}`
-      if (searchQuery) url += (filterStatus ? '&' : '') + `search=${encodeURIComponent(searchQuery)}`
-      const res = await fetch(url)
-      if (!res.ok) throw new Error('Error fetching orders')
-      const data = await res.json()
-      setOrders(data.orders || [])
-    } catch (err) {
-      setError('Error cargando pedidos')
-    } finally {
-      setLoading(false)
-    }
-  }, [filterStatus, searchQuery])
+  const { data: ordersData, loading: gqlLoading, error: gqlError, refetch } = useQuery<GraphQLOrdersData>(GET_ORDERS, {
+    variables: { status: filterStatus || undefined, take: 100 },
+    pollInterval: 60000,
+  })
 
-  useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+  const [updateOrderStatus] = useMutation(UPDATE_ORDER_STATUS)
+
+  const { refetch: refetchOrder } = useQuery<GraphQLOrderData>(GET_ORDER, {
+    variables: { id: '' },
+    skip: true,
+  })
+
+  const fetchOrders = useCallback(() => {
+    refetch()
+  }, [refetch])
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     if (isUpdatingStatus) return
@@ -117,12 +149,9 @@ export default function AdminOrdersPage() {
     statusUpdateTimeoutRef.current = setTimeout(async () => {
       setIsUpdatingStatus(true)
       try {
-        const res = await fetch(`/api/orders/${orderId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus }),
+        await updateOrderStatus({
+          variables: { id: orderId, input: { status: newStatus } },
         })
-        if (!res.ok) throw new Error('Error updating status')
         fetchOrders()
         if (selectedOrder?.id === orderId) {
           setSelectedOrder(null)
@@ -137,14 +166,68 @@ export default function AdminOrdersPage() {
 
   const viewOrder = async (orderId: string) => {
     try {
-      const res = await fetch(`/api/orders/${orderId}`)
-      if (!res.ok) throw new Error('Error fetching order')
-      const data = await res.json()
-      setSelectedOrder(data)
+      const { data } = await refetchOrder({ id: orderId })
+      if (data?.order) {
+        const gqlOrder = data.order
+        const mappedOrder: Order = {
+          id: gqlOrder.id,
+          order_number: gqlOrder.orderNumber || `#${gqlOrder.id.slice(0, 8).toUpperCase()}`,
+          customer_name: gqlOrder.customerName || 'Cliente',
+          customer_email: gqlOrder.customerEmail || '',
+          customer_phone: null,
+          total: gqlOrder.totalAmount,
+          subtotal: gqlOrder.subtotalAmount || gqlOrder.totalAmount,
+          shipping_cost: gqlOrder.shippingCost || 0,
+          discount_amount: gqlOrder.discountAmount || 0,
+          status: gqlOrder.status,
+          payment_status: gqlOrder.paymentStatus,
+          payment_method: gqlOrder.paymentMethod || null,
+          notes: gqlOrder.notes || null,
+          shipping_address: gqlOrder.shippingAddress || null,
+          created_at: gqlOrder.createdAt,
+          order_items: gqlOrder.items?.map(item => ({
+            id: item.id,
+            product_name: item.name,
+            product_price: item.price,
+            quantity: item.quantity,
+            weight: 0,
+            unit_price: item.price,
+            total_price: item.total,
+          })),
+        }
+        setSelectedOrder(mappedOrder)
+      }
     } catch (err) {
       toast.error('Error cargando pedido')
     }
   }
+
+  const orders: Order[] = (ordersData?.orders?.items || []).map((o) => ({
+    id: o.id,
+    order_number: o.orderNumber || `#${o.id.slice(0, 8).toUpperCase()}`,
+    customer_name: o.customerName || 'Cliente',
+    customer_email: o.customerEmail || '',
+    customer_phone: null,
+    total: o.totalAmount,
+    subtotal: o.subtotalAmount || o.totalAmount,
+    shipping_cost: o.shippingCost || 0,
+    discount_amount: o.discountAmount || 0,
+    status: o.status,
+    payment_status: o.paymentStatus,
+    payment_method: o.paymentMethod || null,
+    notes: o.notes || null,
+    shipping_address: o.shippingAddress || null,
+    created_at: o.createdAt,
+    order_items: o.items?.map(item => ({
+      id: item.id,
+      product_name: item.name,
+      product_price: item.price,
+      quantity: item.quantity,
+      weight: 0,
+      unit_price: item.price,
+      total_price: item.total,
+    })),
+  }))
 
   const statusFilters = [
     { value: '', label: 'Todos', count: orders.length },
@@ -193,8 +276,8 @@ export default function AdminOrdersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900">Pedidos</h1>
-          <p className="text-neutral-500 mt-1">{orders.length} pedidos</p>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Pedidos</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{orders.length} pedidos</p>
         </div>
         <button
           onClick={exportToCSV}
@@ -209,7 +292,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-neutral-100 p-4">
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -245,53 +328,53 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Content */}
-      {loading ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+      {gqlLoading ? (
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-6">
           {[...Array(5)].map((_, i) => <SkeletonRow key={i} />)}
         </div>
-      ) : error ? (
+      ) : gqlError ? (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
           <svg className="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <h3 className="text-lg font-semibold text-red-800 mb-2">Error al cargar</h3>
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-red-600 mb-4">{gqlError.message}</p>
           <button onClick={fetchOrders} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
             Reintentar
           </button>
         </div>
       ) : orders.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-12 text-center">
           <svg className="w-16 h-16 text-neutral-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No hay pedidos</h3>
-          <p className="text-neutral-500">Los pedidos aparecerán aquí cuando se creen</p>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">No hay pedidos</h3>
+          <p className="text-neutral-500 dark:text-neutral-400">Los pedidos aparecerán aquí cuando se creen</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-neutral-50">
+              <thead className="bg-neutral-50 dark:bg-neutral-800">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Pedido</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Cliente</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Fecha</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Total</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Estado</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900">Pago</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900">Acciones</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Pedido</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Cliente</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Fecha</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Total</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Estado</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-neutral-900 dark:text-white">Pago</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-neutral-900 dark:text-white">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100">
+              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-700">
                 {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-neutral-50 transition-colors">
+                  <tr key={order.id} className="hover:bg-neutral-50 dark:bg-neutral-800 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="font-semibold text-neutral-900">{order.order_number}</p>
+                      <p className="font-semibold text-neutral-900 dark:text-white">{order.order_number}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-medium text-neutral-900">{order.customer_name}</p>
-                      <p className="text-sm text-neutral-500">{order.customer_email}</p>
+                      <p className="font-medium text-neutral-900 dark:text-white">{order.customer_name}</p>
+                      <p className="text-sm text-neutral-500 dark:text-neutral-400">{order.customer_email}</p>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm text-neutral-600">
@@ -302,7 +385,7 @@ export default function AdminOrdersPage() {
                       </p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-bold text-lg text-neutral-900">{formatPrice(order.total)}</p>
+                      <p className="font-bold text-lg text-neutral-900 dark:text-white">{formatPrice(order.total)}</p>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${statusConfig[order.status]?.bgColor} ${statusConfig[order.status]?.color}`}>
@@ -348,8 +431,8 @@ export default function AdminOrdersPage() {
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-neutral-100 p-6 flex items-center justify-between rounded-t-2xl">
               <div>
-                <h2 className="text-2xl font-bold text-neutral-900">{selectedOrder.order_number}</h2>
-                <p className="text-neutral-500 text-sm mt-1">
+                <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">{selectedOrder.order_number}</h2>
+                <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-1">
                   {new Date(selectedOrder.created_at).toLocaleString('es-AR')}
                 </p>
               </div>
@@ -368,23 +451,22 @@ export default function AdminOrdersPage() {
               {/* Status & Payment */}
               <div className="flex flex-wrap gap-4">
                 <div className={`flex-1 min-w-[200px] p-4 rounded-xl ${statusConfig[selectedOrder.status]?.bgColor}`}>
-                  <p className="text-sm text-neutral-500 mb-1">Estado del Pedido</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">Estado del Pedido</p>
                   <div className="flex items-center gap-2">
                     <span className={`w-3 h-3 rounded-full ${statusConfig[selectedOrder.status]?.dot}`} />
                     <span className={`font-semibold ${statusConfig[selectedOrder.status]?.color}`}>
                       {statusConfig[selectedOrder.status]?.es}
                     </span>
                   </div>
-                  {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
-                    <select
-                      value={selectedOrder.status}
-                      onChange={async (e) => {
-                        await updateStatus(selectedOrder.id, e.target.value)
-                        const res = await fetch(`/api/orders/${selectedOrder.id}`)
-                        if (res.ok) setSelectedOrder(await res.json())
-                      }}
-                      className="mt-3 w-full px-3 py-2 rounded-lg border-0 bg-white text-sm"
-                    >
+                      {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
+                        <select
+                          value={selectedOrder.status}
+                          onChange={async (e) => {
+                            await updateStatus(selectedOrder.id, e.target.value)
+                            await refetchOrder({ id: selectedOrder.id })
+                          }}
+                          className="mt-3 w-full px-3 py-2 rounded-lg border-0 bg-white text-sm"
+                        >
                       <option value="pending">Pendiente</option>
                       <option value="paid">Pagado</option>
                       <option value="preparing">Preparando</option>
@@ -395,7 +477,7 @@ export default function AdminOrdersPage() {
                   )}
                 </div>
                 <div className={`flex-1 min-w-[200px] p-4 rounded-xl ${paymentConfig[selectedOrder.payment_status]?.bgColor}`}>
-                  <p className="text-sm text-neutral-500 mb-1">Estado del Pago</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">Estado del Pago</p>
                   <p className={`font-semibold ${paymentConfig[selectedOrder.payment_status]?.color}`}>
                     {paymentConfig[selectedOrder.payment_status]?.es}
                   </p>
@@ -404,49 +486,49 @@ export default function AdminOrdersPage() {
 
               {/* Customer & Shipping */}
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-neutral-50 rounded-xl p-4">
-                  <h3 className="font-semibold text-neutral-900 mb-3">Datos del Cliente</h3>
+                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-xl p-4">
+                  <h3 className="font-semibold text-neutral-900 dark:text-white mb-3">Datos del Cliente</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="text-neutral-500">Nombre:</span> <span className="font-medium">{selectedOrder.customer_name}</span></p>
-                    <p><span className="text-neutral-500">Email:</span> <span className="font-medium">{selectedOrder.customer_email}</span></p>
+                    <p><span className="text-neutral-500 dark:text-neutral-400">Nombre:</span> <span className="font-medium">{selectedOrder.customer_name}</span></p>
+                    <p><span className="text-neutral-500 dark:text-neutral-400">Email:</span> <span className="font-medium">{selectedOrder.customer_email}</span></p>
                     {selectedOrder.customer_phone && (
-                      <p><span className="text-neutral-500">Teléfono:</span> <span className="font-medium">{selectedOrder.customer_phone}</span></p>
+                      <p><span className="text-neutral-500 dark:text-neutral-400">Teléfono:</span> <span className="font-medium">{selectedOrder.customer_phone}</span></p>
                     )}
                   </div>
                 </div>
                 {selectedOrder.shipping_address && (
-                  <div className="bg-neutral-50 rounded-xl p-4">
-                    <h3 className="font-semibold text-neutral-900 mb-3">Dirección de Envío</h3>
+                  <div className="bg-neutral-50 dark:bg-neutral-800 rounded-xl p-4">
+                    <h3 className="font-semibold text-neutral-900 dark:text-white mb-3">Dirección de Envío</h3>
                     <p className="text-sm text-neutral-700">
                       {selectedOrder.shipping_address.street} {selectedOrder.shipping_address.number}
                     </p>
                     <p className="text-sm text-neutral-700">
                       {selectedOrder.shipping_address.city}, {selectedOrder.shipping_address.state}
                     </p>
-                    <p className="text-sm text-neutral-500">CP: {selectedOrder.shipping_address.postal_code}</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">CP: {selectedOrder.shipping_address.postal_code}</p>
                   </div>
                 )}
               </div>
 
               {/* Items */}
               <div>
-                <h3 className="font-semibold text-neutral-900 mb-3">Items del Pedido</h3>
+                <h3 className="font-semibold text-neutral-900 dark:text-white mb-3">Items del Pedido</h3>
                 <div className="border border-neutral-200 rounded-xl overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-neutral-50">
+                    <thead className="bg-neutral-50 dark:bg-neutral-800">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Producto</th>
-                        <th className="px-4 py-3 text-center text-sm font-semibold text-neutral-900">Cantidad</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-neutral-900">Precio</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-neutral-900">Total</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900 dark:text-white">Producto</th>
+                        <th className="px-4 py-3 text-center text-sm font-semibold text-neutral-900 dark:text-white">Cantidad</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">Precio</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-neutral-900 dark:text-white">Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-100">
+                    <tbody className="divide-y divide-neutral-100 dark:divide-neutral-700">
                       {selectedOrder.order_items?.map((item) => (
                         <tr key={item.id}>
                           <td className="px-4 py-3">
-                            <p className="font-medium text-neutral-900">{item.product_name}</p>
-                            <p className="text-xs text-neutral-500">{item.weight}g</p>
+                            <p className="font-medium text-neutral-900 dark:text-white">{item.product_name}</p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400">{item.weight}g</p>
                           </td>
                           <td className="px-4 py-3 text-center text-neutral-600">
                             {item.quantity}
@@ -454,7 +536,7 @@ export default function AdminOrdersPage() {
                           <td className="px-4 py-3 text-right text-neutral-600">
                             {formatPrice(item.unit_price)}
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold text-neutral-900">
+                          <td className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-white">
                             {formatPrice(item.total_price)}
                           </td>
                         </tr>
@@ -465,10 +547,10 @@ export default function AdminOrdersPage() {
               </div>
 
               {/* Totals */}
-              <div className="bg-neutral-50 rounded-xl p-4">
+              <div className="bg-neutral-50 dark:bg-neutral-800 rounded-xl p-4">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-neutral-500">Subtotal</span>
+                    <span className="text-neutral-500 dark:text-neutral-400">Subtotal</span>
                     <span className="font-medium">{formatPrice(selectedOrder.subtotal)}</span>
                   </div>
                   {selectedOrder.discount_amount > 0 && (
@@ -478,7 +560,7 @@ export default function AdminOrdersPage() {
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-neutral-500">Envío</span>
+                    <span className="text-neutral-500 dark:text-neutral-400">Envío</span>
                     <span className="font-medium">{formatPrice(selectedOrder.shipping_cost)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold pt-2 border-t border-neutral-200">

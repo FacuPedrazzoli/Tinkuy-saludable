@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { useCartStore, WEIGHTS, type Weight, calculatePrice } from '@/lib/store'
 import { formatPrice, calculateDiscount } from '@/lib/utils'
@@ -19,7 +19,24 @@ export function ProductActions({ product }: ProductActionsProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [isZoomed, setIsZoomed] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isStickyVisible, setIsStickyVisible] = useState(false)
   const { addItem } = useCartStore()
+  const addToCartRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsStickyVisible(!entry.isIntersecting)
+      },
+      { threshold: 0, rootMargin: '-80px 0px 0px 0px' }
+    )
+
+    if (addToCartRef.current) {
+      observer.observe(addToCartRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
 
   const handleAddToCart = useCallback(() => {
     setIsAdding(true)
@@ -127,7 +144,7 @@ export function ProductActions({ product }: ProductActionsProps) {
                 key={star}
                 className={cn(
                   'w-5 h-5',
-                  star <= Math.round(product.rating) ? 'text-amber-400' : 'text-neutral-200'
+                  star <= Math.round(product.rating) ? 'text-amber-400' : 'text-neutral-300'
                 )}
                 fill="currentColor"
                 viewBox="0 0 20 20"
@@ -202,7 +219,7 @@ export function ProductActions({ product }: ProductActionsProps) {
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3" ref={addToCartRef}>
             <button
               onClick={handleAddToCart}
               disabled={isAdding}
@@ -229,6 +246,56 @@ export function ProductActions({ product }: ProductActionsProps) {
                 </>
               )}
             </button>
+          </div>
+
+          <div
+            className={cn(
+              'fixed bottom-[72px] left-0 right-0 z-40 bg-white border-t border-neutral-100 shadow-lg transition-transform duration-300 md:hidden safe-area-bottom',
+              isStickyVisible ? 'translate-y-0' : 'translate-y-full'
+            )}
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-neutral-900 truncate">{product.name}</p>
+                <p className="text-lg font-bold text-primary-600 font-mono">
+                  {formatPrice(currentPrice)}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                {( [250, 500] as Weight[]).map((weight) => (
+                  <button
+                    key={weight}
+                    onClick={() => setSelectedWeight(weight)}
+                    className={cn(
+                      'px-3 py-2 text-xs font-medium rounded-lg transition-all min-h-[44px] min-w-[44px]',
+                      selectedWeight === weight
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    )}
+                    aria-pressed={selectedWeight === weight}
+                  >
+                    {weight}g
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handleAddToCart}
+                disabled={isAdding || product.stock === 0}
+                className={cn(
+                  'px-6 py-3 rounded-xl font-bold text-sm transition-all min-h-[44px]',
+                  product.stock === 0
+                    ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+                    : isAdding
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-secondary-500 text-white hover:bg-secondary-600'
+                )}
+              >
+                {product.stock === 0 ? 'Sin Stock' : isAdding ? '✓' : 'Agregar'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -264,7 +331,7 @@ export function ProductActions({ product }: ProductActionsProps) {
           }}
         >
           <button
-            className="absolute top-4 right-4 text-white hover:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+            className="absolute top-4 right-4 text-white hover:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-400/50"
             onClick={() => setIsModalOpen(false)}
             aria-label="Cerrar visor de imagen"
           >

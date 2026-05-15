@@ -85,7 +85,8 @@ export default function ContactPage() {
     }
 
     try {
-      const res = await fetch('/api/contact', {
+      const contactUrl = (process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000').replace('/graphql', '/contact')
+      const res = await fetch(contactUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizedForm),

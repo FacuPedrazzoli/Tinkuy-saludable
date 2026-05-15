@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
+import { Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google'
 import dynamic from 'next/dynamic'
 import './globals.css'
 import { Header } from '@/components/Header'
@@ -19,10 +19,11 @@ const DevTools = dynamic(() => import('@/components/DevTools').then(mod => ({ de
   ssr: false,
 })
 
-const inter = Inter({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-sans',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 })
 
 const playfair = Playfair_Display({
@@ -31,9 +32,10 @@ const playfair = Playfair_Display({
   display: 'swap',
 })
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl),
   title: {
     default: `${siteConfig.name} | ${siteConfig.slogan}`,
     template: `%s | ${siteConfig.name}`,
@@ -84,7 +86,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="es" className={`${plusJakarta.variable} ${playfair.variable}`}>
       <body className="min-h-screen flex flex-col font-sans relative">
         <Providers>
           <a
@@ -94,7 +96,7 @@ export default function RootLayout({
             Saltar al contenido principal
           </a>
             <Header />
-            <main id="main-content" className="flex-1 relative z-10">{children}</main>
+            <main id="main-content" className="flex-1 relative z-10 pb-20 md:pb-0">{children}</main>
             <Footer />
             <CartDrawer />
             <CookieConsent />

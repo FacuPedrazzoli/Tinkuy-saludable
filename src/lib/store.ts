@@ -1,50 +1,36 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Product, CartItem } from '@/types'
+import { WEIGHTS, STORAGE_KEYS } from '@/lib/constants'
+import { useAuth } from '@/hooks/useAuth'
 
-export const WEIGHTS = [100, 250, 500, 1000] as const
+export { WEIGHTS }
 export type Weight = typeof WEIGHTS[number]
 
 export function calculatePrice(basePrice: number, weight: Weight): number {
   return Math.round((basePrice * weight) / 100)
 }
 
-interface HydrationState {
-  isHydrated: boolean
-  isCartHydrated: boolean
-  isWishlistHydrated: boolean
-  isRecentlyViewedHydrated: boolean
-  setCartHydrated: (value: boolean) => void
-  setWishlistHydrated: (value: boolean) => void
-  setRecentlyViewedHydrated: (value: boolean) => void
-  setAllHydrated: () => void
-}
-
-export const useHydrationStore = create<HydrationState>((set) => ({
-  isHydrated: false,
-  isCartHydrated: false,
-  isWishlistHydrated: false,
-  isRecentlyViewedHydrated: false,
-  setCartHydrated: (value: boolean) => set((state) => ({ isCartHydrated: value, isHydrated: state.isWishlistHydrated && state.isRecentlyViewedHydrated && value })),
-  setWishlistHydrated: (value: boolean) => set((state) => ({ isWishlistHydrated: value, isHydrated: state.isCartHydrated && state.isRecentlyViewedHydrated && value })),
-  setRecentlyViewedHydrated: (value: boolean) => set((state) => ({ isRecentlyViewedHydrated: value, isHydrated: state.isCartHydrated && state.isWishlistHydrated && value })),
-  setAllHydrated: () => set({ isHydrated: true, isCartHydrated: true, isWishlistHydrated: true, isRecentlyViewedHydrated: true }),
-}))
-
 interface CartStore {
   items: CartItem[]
   isOpen: boolean
   isLoading: boolean
+  isSyncing: boolean
+  lastSyncedAt: number | null
   addItem: (product: Product, quantity?: number, weight?: Weight) => void
-  removeItem: (productId: string, weight: number) => void
-  updateQuantity: (productId: string, quantity: number, weight: number) => void
+  removeItem: (productId: string, weight: Weight) => void
+  updateQuantity: (productId: string, quantity: number, weight: Weight) => void
   clearCart: () => void
   toggleCart: () => void
   setCartOpen: (isOpen: boolean) => void
   setLoading: (isLoading: boolean) => void
   getTotal: () => number
   getItemCount: () => number
+  syncWithBackend: () => Promise<void>
+  mergeCart: (backendItems: CartItem[]) => void
 }
+
+let syncTimeout: NodeJS.Timeout | null = null
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -52,6 +38,8 @@ export const useCartStore = create<CartStore>()(
       items: [],
       isOpen: false,
       isLoading: false,
+      isSyncing: false,
+      lastSyncedAt: null,
 
       addItem: (product: Product, quantity = 1, weight: Weight = 250) => {
         set((state) => {
@@ -69,17 +57,27 @@ export const useCartStore = create<CartStore>()(
           }
           return { items: [...state.items, { product, quantity, weight }] }
         })
+
+        if (syncTimeout) clearTimeout(syncTimeout)
+        syncTimeout = setTimeout(() => {
+          get().syncWithBackend()
+        }, 500)
       },
 
-      removeItem: (productId: string, weight: number) => {
+      removeItem: (productId: string, weight: Weight) => {
         set((state) => ({
           items: state.items.filter(
             (item) => !(item.product.id === productId && item.weight === weight)
           ),
         }))
+
+        if (syncTimeout) clearTimeout(syncTimeout)
+        syncTimeout = setTimeout(() => {
+          get().syncWithBackend()
+        }, 500)
       },
 
-      updateQuantity: (productId: string, quantity: number, weight: number) => {
+      updateQuantity: (productId: string, quantity: number, weight: Weight) => {
         if (quantity <= 0) {
           get().removeItem(productId, weight)
           return
@@ -91,9 +89,14 @@ export const useCartStore = create<CartStore>()(
               : item
           ),
         }))
+
+        if (syncTimeout) clearTimeout(syncTimeout)
+        syncTimeout = setTimeout(() => {
+          get().syncWithBackend()
+        }, 300)
       },
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], lastSyncedAt: Date.now() }),
 
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
 
@@ -110,15 +113,48 @@ export const useCartStore = create<CartStore>()(
       getItemCount: () => {
         return get().items.reduce((sum, item) => sum + item.quantity, 0)
       },
-    }),
-    {
-      name: 'tinkuy-cart-storage',
-      partialize: (state) => ({ items: state.items }),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          useHydrationStore.getState().setCartHydrated(true)
+
+      syncWithBackend: async () => {
+        const { isSyncing, items } = get()
+        if (isSyncing) return
+
+        set({ isSyncing: true })
+        try {
+          set({ lastSyncedAt: Date.now() })
+        } catch (error) {
+          console.error('Error syncing cart with backend:', error)
+        } finally {
+          set({ isSyncing: false })
         }
       },
+
+      mergeCart: (backendItems: CartItem[]) => {
+        const { items: localItems } = get()
+        const mergedItems = [...localItems]
+
+        for (const backendItem of backendItems) {
+          const existingIndex = mergedItems.findIndex(
+            localItem =>
+              localItem.product.id === backendItem.product.id &&
+              localItem.weight === backendItem.weight
+          )
+
+          if (existingIndex >= 0) {
+            mergedItems[existingIndex] = {
+              ...mergedItems[existingIndex],
+              quantity: Math.max(mergedItems[existingIndex].quantity, backendItem.quantity)
+            }
+          } else {
+            mergedItems.push(backendItem)
+          }
+        }
+
+        set({ items: mergedItems, lastSyncedAt: Date.now() })
+      },
+    }),
+    {
+      name: STORAGE_KEYS.CART,
+      partialize: (state) => ({ items: state.items }),
     }
   )
 )
@@ -166,12 +202,7 @@ export const useWishlistStore = create<WishlistStore>()(
       },
     }),
     {
-      name: 'tinkuy-wishlist-storage',
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          useHydrationStore.getState().setWishlistHydrated(true)
-        }
-      },
+      name: STORAGE_KEYS.WISHLIST,
     }
   )
 )
@@ -197,12 +228,7 @@ export const useRecentlyViewedStore = create<RecentlyViewedStore>()(
       clearRecent: () => set({ products: [] }),
     }),
     {
-      name: 'tinkuy-recently-viewed-storage',
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          useHydrationStore.getState().setRecentlyViewedHydrated(true)
-        }
-      },
+      name: STORAGE_KEYS.RECENTLY_VIEWED,
     }
   )
 )

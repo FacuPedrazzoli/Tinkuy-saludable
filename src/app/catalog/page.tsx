@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
 
 const catalogSchema = {
   '@context': 'https://schema.org',

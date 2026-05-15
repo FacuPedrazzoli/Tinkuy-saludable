@@ -30,6 +30,7 @@ export interface GraphQLProduct {
   isActive: boolean
   isVisible: boolean
   basePrice: string
+  brand: string | null
   createdAt: string
   updatedAt: string
   variants: GraphQLProductVariant[]

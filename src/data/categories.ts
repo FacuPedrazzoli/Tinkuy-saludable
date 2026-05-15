@@ -24,7 +24,7 @@ export const categories: Category[] = [
     name: 'Harinas',
     slug: 'harinas',
     description: 'Harinas integrales y alternativas sin gluten',
-    image: 'https://images.unsplash.com/photo-1582427749671-5505b997a574?w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=800&q=80',
     subcategories: ['Integral', 'Almond', 'Coco', 'Avena', 'Garbanzo'],
     productCount: 8,
   },

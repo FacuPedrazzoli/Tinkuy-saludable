@@ -39,10 +39,6 @@ export default function AdminClientsPage() {
 
   const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCustomersResult>(GET_CUSTOMERS, {
     variables: { search: search || undefined },
-    onError: (error) => {
-      console.error('Customers query error:', error);
-      setError('Error cargando clientes');
-    },
   });
 
   useEffect(() => {
@@ -73,14 +69,14 @@ export default function AdminClientsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900">Clientes</h1>
-          <p className="text-neutral-500 mt-1">{clients.length} clientes registrados</p>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Clientes</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">{clients.length} clientes registrados</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-neutral-100 p-5">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,13 +84,13 @@ export default function AdminClientsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm text-neutral-500">Total Clientes</p>
-              <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">Total Clientes</p>
+              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.total}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-neutral-100 p-5">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,13 +98,13 @@ export default function AdminClientsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm text-neutral-500">Ingresos Totales</p>
-              <p className="text-2xl font-bold text-neutral-900">{formatPrice(stats.totalSpent)}</p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">Ingresos Totales</p>
+              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{formatPrice(stats.totalSpent)}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-neutral-100 p-5">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -116,13 +112,13 @@ export default function AdminClientsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm text-neutral-500">Pedidos Totales</p>
-              <p className="text-2xl font-bold text-neutral-900">{stats.totalOrders}</p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">Pedidos Totales</p>
+              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.totalOrders}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-neutral-100 p-5">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -130,15 +126,15 @@ export default function AdminClientsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm text-neutral-500">Promedio</p>
-              <p className="text-2xl font-bold text-neutral-900">{formatPrice(stats.avgSpent)}</p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">Promedio</p>
+              <p className="text-2xl font-bold text-neutral-900 dark:text-white">{formatPrice(stats.avgSpent)}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-neutral-100 p-4">
+      <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -189,7 +185,7 @@ export default function AdminClientsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-6">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-6">
           {[...Array(5)].map((_, i) => <SkeletonRow key={i} />)}
         </div>
       ) : error ? (
@@ -204,29 +200,29 @@ export default function AdminClientsPage() {
           </button>
         </div>
       ) : clients.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-neutral-100 p-12 text-center">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 p-12 text-center">
           <svg className="w-16 h-16 text-neutral-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">No hay clientes</h3>
-          <p className="text-neutral-500">Los clientes aparecerán cuando realicen su primera compra</p>
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">No hay clientes</h3>
+          <p className="text-neutral-500 dark:text-neutral-400">Los clientes aparecerán cuando realicen su primera compra</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-neutral-100 overflow-hidden">
-          <div className="divide-y divide-neutral-100">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-neutral-100 dark:border-neutral-700 overflow-hidden">
+          <div className="divide-y divide-neutral-100 dark:divide-neutral-700">
             {sortedClients.map((client) => (
-              <div key={client.id} className="p-4 hover:bg-neutral-50 transition-colors">
+              <div key={client.id} className="p-4 hover:bg-neutral-50 dark:bg-neutral-800 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-neutral-900 truncate">{client.firstName} {client.lastName}</h3>
+                      <h3 className="font-semibold text-neutral-900 dark:text-white truncate">{client.firstName} {client.lastName}</h3>
                       {client.totalOrders >= 5 && (
                         <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
                           VIP
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-neutral-500 truncate">{client.email}</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 truncate">{client.email}</p>
                     {client.phone && (
                       <p className="text-xs text-neutral-400">{client.phone}</p>
                     )}
@@ -234,18 +230,18 @@ export default function AdminClientsPage() {
                   <div className="text-right hidden sm:block">
                     <div className="flex items-center gap-4">
                       <div className="text-center px-4">
-                        <p className="text-2xl font-bold text-neutral-900">{client.totalOrders}</p>
-                        <p className="text-xs text-neutral-500">pedidos</p>
+                        <p className="text-2xl font-bold text-neutral-900 dark:text-white">{client.totalOrders}</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">pedidos</p>
                       </div>
                       <div className="text-center px-4 border-l border-neutral-200">
                         <p className="text-2xl font-bold text-primary-600">{formatPrice(client.totalSpent)}</p>
-                        <p className="text-xs text-neutral-500">gastado</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">gastado</p>
                       </div>
                       <div className="text-center px-4 border-l border-neutral-200">
                         <p className="text-sm font-medium text-neutral-700">
                           {new Date(client.createdAt).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })}
                         </p>
-                        <p className="text-xs text-neutral-500">cliente desde</p>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400">cliente desde</p>
                       </div>
                     </div>
                   </div>
@@ -253,12 +249,12 @@ export default function AdminClientsPage() {
                 {/* Mobile stats */}
                 <div className="flex sm:hidden gap-4 mt-3 pt-3 border-t border-neutral-100">
                   <div className="flex-1 text-center">
-                    <p className="text-lg font-bold text-neutral-900">{client.totalOrders}</p>
-                    <p className="text-xs text-neutral-500">pedidos</p>
+                    <p className="text-lg font-bold text-neutral-900 dark:text-white">{client.totalOrders}</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">pedidos</p>
                   </div>
                   <div className="flex-1 text-center">
                     <p className="text-lg font-bold text-primary-600">{formatPrice(client.totalSpent)}</p>
-                    <p className="text-xs text-neutral-500">gastado</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400">gastado</p>
                   </div>
                 </div>
               </div>

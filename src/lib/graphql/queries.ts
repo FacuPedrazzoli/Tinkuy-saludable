@@ -579,3 +579,28 @@ export const GET_CUSTOMERS = gql`
     }
   }
 `;
+
+export const CREATE_IMAGE = gql`
+  mutation CreateImage($input: CreateImageInput!) {
+    createImage(input: $input) {
+      id
+      url
+      altText
+      sortOrder
+    }
+  }
+`;
+
+export const DELETE_IMAGE = gql`
+  mutation DeleteImage($id: String!) {
+    deleteImage(id: $id) {
+      id
+    }
+  }
+`;
+
+export const REVOKE_TOKEN = gql`
+  mutation RevokeToken {
+    revokeToken
+  }
+`;
