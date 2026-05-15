@@ -9,6 +9,7 @@ const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'access-token-sec
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'refresh-token-secret';
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const RESET_TOKEN_EXPIRY_HOURS = 1;
 
 export interface AuthPayload {
   accessToken: string;
@@ -259,4 +260,63 @@ export async function getUserFromToken(accessToken: string) {
       isActive: true,
     },
   });
+}
+
+export async function createPasswordResetToken(email: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    return;
+  }
+
+  await prisma.passwordResetToken.deleteMany({ where: { email } });
+
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + RESET_TOKEN_EXPIRY_HOURS);
+
+  await prisma.passwordResetToken.create({
+    data: {
+      email,
+      token,
+      expiresAt,
+    },
+  });
+
+  console.log(`Password reset token for ${email}: ${token}`);
+}
+
+export async function verifyPasswordResetToken(token: string): Promise<boolean> {
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { token },
+  });
+
+  if (!resetToken) {
+    return false;
+  }
+
+  if (resetToken.expiresAt < new Date()) {
+    await prisma.passwordResetToken.delete({ where: { id: resetToken.id } });
+    return false;
+  }
+
+  return true;
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { token },
+  });
+
+  if (!resetToken || resetToken.expiresAt < new Date()) {
+    throw new Error('Token inválido o expirado');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  await prisma.user.update({
+    where: { email: resetToken.email },
+    data: { passwordHash },
+  });
+
+  await prisma.passwordResetToken.delete({ where: { id: resetToken.id } });
 }

@@ -142,7 +142,7 @@ export function BottomNav({ onSearchClick }: BottomNavProps) {
                   <div className="relative">
                     {active ? item.activeIcon : item.icon}
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                      {cartCount > 99 ? '99+' : cartCount}
+                      {cartCount > 9 ? '9+' : cartCount}
                     </span>
                   </div>
                 ) : (

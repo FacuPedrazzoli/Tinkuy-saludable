@@ -45,6 +45,7 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
     [product.price, selectedWeight]
   )
   const isOutOfStock = product.stock === 0
+  const isLowStock = product.stock > 0 && product.stock <= 5
   const hasTags = product.glutenFree || product.vegan || product.keto
 
   const productImage = useMemo(() =>
@@ -94,6 +95,12 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
           {discount > 0 && (
             <span className="absolute top-3 left-3 px-2.5 py-1 bg-primary-500 text-white text-xs font-bold rounded-lg shadow-sm">
               -{discount}%
+            </span>
+          )}
+
+          {isLowStock && (
+            <span className={`absolute left-3 px-2.5 py-1 bg-amber-500 text-white text-xs font-bold rounded-lg shadow-sm ${discount ? 'top-12' : 'top-3'}`}>
+              ¡Últimas {product.stock} unidades!
             </span>
           )}
 

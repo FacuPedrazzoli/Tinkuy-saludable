@@ -14,6 +14,7 @@ import ShippingForm from '@/components/checkout/ShippingForm'
 import PaymentForm from '@/components/checkout/PaymentForm'
 import OrderSummary from '@/components/checkout/OrderSummary'
 import OrderTotals from '@/components/checkout/OrderTotals'
+import { FreeShippingBar } from '@/components/FreeShippingBar'
 import { siteConfig } from '@/data/siteConfig'
 
 const DEFAULT_BRANCH_ID = process.env.NEXT_PUBLIC_DEFAULT_BRANCH_ID || 'default-branch'
@@ -461,6 +462,7 @@ export default function CheckoutPage() {
 
           <div className="lg:col-span-1">
             <OrderSummary items={items} getTotal={getTotal} />
+            <FreeShippingBar className="mt-4" />
             <OrderTotals subtotal={getTotal()} />
           </div>
         </div>

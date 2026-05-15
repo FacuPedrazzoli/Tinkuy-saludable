@@ -57,7 +57,7 @@ export function sanitizeHtml(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
     .replace(/javascript:/gi, '')
-    .replace(/on\w+=/gi, '')
+    .replace(/on\w+\s*=/gi, '')
 }
 
 export function escapeJsonString(str: string): string {

@@ -1,9 +1,35 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
+import { useMutation } from '@apollo/client/react'
+import { gql } from '@apollo/client'
 import { siteConfig } from '@/data/siteConfig'
 
+const SUBSCRIBE_TO_NEWSLETTER = gql`
+  mutation SubscribeToNewsletter($email: String!) {
+    subscribeToNewsletter(email: $email, source: "FOOTER") {
+      id
+      email
+    }
+  }
+`
+
 export function Footer() {
+  const [email, setEmail] = useState('')
+  const [subscribeToNewsletter, { loading }] = useMutation(SUBSCRIBE_TO_NEWSLETTER)
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    try {
+      await subscribeToNewsletter({ variables: { email } })
+      setEmail('')
+    } catch (err) {
+      console.error('Newsletter subscription error:', err)
+    }
+  }
+
   return (
     <footer className="bg-neutral-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -81,20 +107,30 @@ export function Footer() {
               <p className="text-neutral-400 text-sm mb-4">
                 Recibí ofertas exclusivas y consejos de vida saludable.
               </p>
-              <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
+              <form className="flex gap-2" onSubmit={handleSubscribe}>
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@email.com"
                   className="flex-1 px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
                 />
                 <button
                   type="submit"
-                  className="px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl transition-colors duration-300"
+                  disabled={loading}
+                  className="px-5 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-semibold rounded-xl transition-colors duration-300"
                   aria-label="Suscribirse al newsletter"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
+                  {loading ? (
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  )}
                 </button>
               </form>
             </div>
@@ -110,6 +146,31 @@ export function Footer() {
               <p className="text-neutral-500 text-sm">
                 © {new Date().getFullYear()} {siteConfig.name}. Todos los derechos reservados.
               </p>
+            </div>
+
+            <div className="flex justify-center items-center gap-3 mt-6">
+              <span className="text-xs text-neutral-500 mr-2">Medios de pago:</span>
+              <svg className="h-6 w-auto text-neutral-400" viewBox="0 0 50 16" fill="currentColor">
+                <path d="M18.5 0C12.5 0 8 4.5 8 10.5s4.5 5.5 10.5 5.5 10.5-2 10.5-5.5S24.5 0 18.5 0zm0 9c-2 0-3.5-1.5-3.5-3.5S16.5 2 18.5 2s3.5 1.5 3.5 3.5-1.5 3.5-3.5 3.5z"/>
+              </svg>
+              <svg className="h-6 w-auto text-neutral-400" viewBox="0 0 50 32" fill="currentColor">
+                <rect width="50" height="32" rx="4"/>
+                <circle cx="20" cy="16" r="8" fill="#EB001B"/>
+                <circle cx="30" cy="16" r="8" fill="#F79E1B"/>
+                <path d="M25 10.5a8 8 0 000 11 8 8 0 000-11z" fill="#FF5F00"/>
+              </svg>
+              <svg className="h-5 w-auto text-neutral-400" viewBox="0 0 60 20" fill="currentColor">
+                <rect width="60" height="20" rx="2" fill="#3267E0"/>
+                <text x="30" y="14" textAnchor="middle" fill="white" fontSize="8" fontWeight="bold">MercadoPago</text>
+              </svg>
+              <svg className="h-6 w-auto text-neutral-400" viewBox="0 0 50 32" fill="currentColor">
+                <rect width="50" height="32" rx="4"/>
+                <text x="25" y="18" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">VISA</text>
+              </svg>
+              <svg className="h-6 w-auto text-neutral-400" viewBox="0 0 50 32" fill="currentColor">
+                <rect width="50" height="32" rx="4"/>
+                <text x="25" y="18" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">AMEX</text>
+              </svg>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getAllProducts, getProductBySlug, getRelatedProducts } from '@/data/products'
 import { ProductActions } from '@/components/product/ProductActions'
@@ -137,10 +138,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 lg:p-8">
               <div className="relative aspect-square bg-neutral-100 rounded-xl overflow-hidden">
                 {productImage ? (
-                  <img
+                  <Image
                     src={productImage}
                     alt={product.name}
-                    className="object-cover w-full h-full"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-neutral-400">
@@ -248,10 +251,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     >
                       <div className="aspect-square bg-neutral-100 relative overflow-hidden">
                         {relatedImage ? (
-                          <img
+                          <Image
                             src={relatedImage}
                             alt={relatedProduct.name}
-                            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                            fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
                           <div className="flex items-center justify-center h-full text-neutral-400 text-sm">

@@ -2,7 +2,7 @@ import { builder } from '@/graphql/builder';
 import { GQLResponse, successResponse, errorResponse } from '@/lib/graphql/response';
 import { handleAppError, formatGraphQLErrors } from '@/lib/errors';
 import { getCart, addToCart, removeFromCart, updateCartItemQuantity, mergeGuestCart } from '@/modules/cart/service';
-import { refreshAccessToken, revokeRefreshToken, revokeAllUserSessions } from '@/modules/auth/service';
+import { refreshAccessToken, revokeRefreshToken, revokeAllUserSessions, createPasswordResetToken, verifyPasswordResetToken, resetPassword } from '@/modules/auth/service';
 import '@/modules/reviews/resolver';
 import '@/modules/newsletter/resolver';
 import '@/modules/loyalty/resolver';
@@ -223,6 +223,43 @@ builder.mutationType({
           }
           const count = await revokeAllUserSessions(ctx.userId);
           return count;
+        } catch (error) {
+          const appError = handleAppError(error);
+          throw new Error(appError.message);
+        }
+      },
+    } as any),
+
+    forgotPassword: t.field({
+      type: 'Boolean',
+      args: {
+        email: t.arg.string({ required: true }),
+      },
+      resolve: async (_root: unknown, { email }: any) => {
+        try {
+          await createPasswordResetToken(email);
+          return true;
+        } catch (error) {
+          console.error('Forgot password error:', error);
+          return true;
+        }
+      },
+    } as any),
+
+    resetPassword: t.field({
+      type: 'Boolean',
+      args: {
+        token: t.arg.string({ required: true }),
+        newPassword: t.arg.string({ required: true }),
+      },
+      resolve: async (_root: unknown, { token, newPassword }: any) => {
+        try {
+          const isValid = await verifyPasswordResetToken(token);
+          if (!isValid) {
+            throw new Error('Token inválido o expirado');
+          }
+          await resetPassword(token, newPassword);
+          return true;
         } catch (error) {
           const appError = handleAppError(error);
           throw new Error(appError.message);

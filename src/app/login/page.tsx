@@ -176,7 +176,10 @@ export default function AdminLoginPage() {
           </button>
 
           <p className="text-center text-sm text-neutral-500 mt-4">
-            ¿Olvidaste tu contraseña? Contactá al administrador.
+            ¿Olvidaste tu contraseña?{' '}
+            <Link href="/forgot-password" className="text-primary-600 hover:text-primary-700 font-medium">
+              Recuperarla
+            </Link>
           </p>
         </form>
 

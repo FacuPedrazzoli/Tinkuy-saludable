@@ -11,6 +11,7 @@ import { GET_MY_CART, UPDATE_CART_ITEM, REMOVE_FROM_CART, CLEAR_CART } from '@/l
 import { syncCartStoreFromGraphQL, getAuthToken, type GraphQLCart, type GraphQLCartItem } from '@/lib/cartUtils'
 import { ToastContainer, useToast } from '@/components/Toast'
 import { CartSkeleton } from '@/components/checkout/CartSkeleton'
+import { FreeShippingBar } from '@/components/FreeShippingBar'
 
 interface AddToCartInput {
   productId: string
@@ -259,9 +260,8 @@ export function CartDrawer() {
                     <span className="font-medium">Subtotal</span>
                     <span className="font-bold text-primary-600">{formatPrice(getTotal())}</span>
                   </div>
-                  <p className="text-sm text-neutral-500">
-                    El costo de envío se calcula al checkout
-                  </p>
+
+                  <FreeShippingBar />
                   <Link
                     href="/checkout"
                     onClick={() => setCartOpen(false)}

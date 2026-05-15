@@ -31,3 +31,7 @@ export const ORDER_PREFIX = 'TNK-'
 export const COUNTRY = 'Argentina'
 export const LOCALE = 'es-AR'
 export const CURRENCY = 'ARS'
+
+// Shipping
+export const FREE_SHIPPING_THRESHOLD = 15000 // $15.000 ARS
+export const LOW_STOCK_THRESHOLD = 5

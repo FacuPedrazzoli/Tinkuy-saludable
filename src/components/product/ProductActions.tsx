@@ -54,7 +54,7 @@ export function ProductActions({ product }: ProductActionsProps) {
   const discount = useMemo(() => product.originalPrice
     ? calculateDiscount(product.originalPrice, product.price)
     : 0, [product.originalPrice, product.price])
-  const isLowStock = product.stock > 0 && product.stock < 20
+  const isLowStock = product.stock > 0 && product.stock <= 5
 
   return (
     <>
@@ -159,7 +159,7 @@ export function ProductActions({ product }: ProductActionsProps) {
         </div>
 
         <div className="flex items-baseline gap-3">
-          <span className="text-4xl font-bold text-neutral-900 font-mono">{formatPrice(currentPrice)}</span>
+          <span className="text-4xl font-bold text-neutral-900 font-sans">{formatPrice(currentPrice)}</span>
           {product.originalPrice && (
             <>
               <span className="text-xl text-neutral-400 line-through">
@@ -258,7 +258,7 @@ export function ProductActions({ product }: ProductActionsProps) {
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-neutral-900 truncate">{product.name}</p>
-                <p className="text-lg font-bold text-primary-600 font-mono">
+                <p className="text-lg font-bold text-primary-600 font-sans">
                   {formatPrice(currentPrice)}
                 </p>
               </div>
@@ -301,7 +301,7 @@ export function ProductActions({ product }: ProductActionsProps) {
 
         {isLowStock && (
           <p className="text-sm text-amber-600 font-medium">
-            Solo quedan {product.stock} unidades
+            ¡Últimas {product.stock} unidades!
           </p>
         )}
 

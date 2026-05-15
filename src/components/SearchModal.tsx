@@ -242,7 +242,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-neutral-900 line-clamp-1">{product.name}</h4>
                         <p className="text-sm text-neutral-500">{product.category}</p>
-                        <p className="text-primary-600 font-semibold font-mono">{formatPrice(product.price)} <span className="text-neutral-500 text-xs font-normal">por 100g</span></p>
+                        <p className="text-primary-600 font-semibold font-sans">{formatPrice(product.price)} <span className="text-neutral-500 text-xs font-normal">por 100g</span></p>
                       </div>
                       <svg className="w-5 h-5 text-neutral-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

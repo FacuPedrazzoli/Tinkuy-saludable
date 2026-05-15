@@ -19,6 +19,14 @@ const DevTools = dynamic(() => import('@/components/DevTools').then(mod => ({ de
   ssr: false,
 })
 
+const ExitIntentPopup = dynamic(() => import('@/components/ExitIntentPopup').then(mod => ({ default: mod.ExitIntentPopup })), {
+  ssr: false,
+})
+
+const Analytics = dynamic(() => import('@/components/Analytics').then(mod => ({ default: mod.Analytics })), {
+  ssr: false,
+})
+
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-sans',
@@ -101,6 +109,8 @@ export default function RootLayout({
             <CartDrawer />
             <CookieConsent />
             <DevTools />
+            <ExitIntentPopup />
+            <Analytics />
         </Providers>
       </body>
     </html>
