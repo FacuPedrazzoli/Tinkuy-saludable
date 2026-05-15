@@ -44,11 +44,11 @@ test.describe('Flujo completo de compra', () => {
   async function handleMercadoPagoSandbox(page: Page) {
     const mpFrame = page.frameLocator('iframe[title="MercadoPago"]');
     if (mpFrame) {
-      await mpFrame.fill('[name="cardNumber"]', TEST_DATA.mercadoPagoSandbox.cardNumber);
-      await mpFrame.fill('[name="expiry"]', TEST_DATA.mercadoPagoSandbox.expiry);
-      await mpFrame.fill('[name="cvv"]', TEST_DATA.mercadoPagoSandbox.cvv);
-      await mpFrame.fill('[name="cardholderName"]', TEST_DATA.mercadoPagoSandbox.cardholderName);
-      await mpFrame.click('button[type="submit"]');
+      await mpFrame.locator('[name="cardNumber"]').fill(TEST_DATA.mercadoPagoSandbox.cardNumber);
+      await mpFrame.locator('[name="expiry"]').fill(TEST_DATA.mercadoPagoSandbox.expiry);
+      await mpFrame.locator('[name="cvv"]').fill(TEST_DATA.mercadoPagoSandbox.cvv);
+      await mpFrame.locator('[name="cardholderName"]').fill(TEST_DATA.mercadoPagoSandbox.cardholderName);
+      await mpFrame.locator('button[type="submit"]').click();
     }
   }
 
@@ -116,11 +116,11 @@ test.describe('Flujo completo de compra', () => {
     await page.click('button:has-text("Realizar Pedido")');
 
     const mpFrame = page.frameLocator('iframe[title="MercadoPago"]');
-    await mpFrame.fill('[name="cardNumber"]', '0000 0000 0000 0000');
-    await mpFrame.fill('[name="expiry"]', '11/25');
-    await mpFrame.fill('[name="cvv"]', '000');
-    await mpFrame.fill('[name="cardholderName"]', 'OTHE');
-    await mpFrame.click('button[type="submit"]');
+    await mpFrame.locator('[name="cardNumber"]').fill('0000 0000 0000 0000');
+    await mpFrame.locator('[name="expiry"]').fill('11/25');
+    await mpFrame.locator('[name="cvv"]').fill('000');
+    await mpFrame.locator('[name="cardholderName"]').fill('OTHE');
+    await mpFrame.locator('button[type="submit"]').click();
 
     await expect(page).toHaveURL(/checkout\/failure/, { timeout: 15000 });
     await expect(page.locator('text=Error en el pago')).toBeVisible();

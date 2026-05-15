@@ -16,7 +16,8 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "playwright test tests/integration",
     "test:unit": "vitest run tests/unit",
-    "test:all": "npm run test:unit && npm run test:e2e"
+    "test:graphql": "vitest run tests/graphql",
+    "test:all": "npm run test && npm run test:graphql && npm run test:e2e"
   },
   "dependencies": {
     "@apollo/client": "^4.1.9",

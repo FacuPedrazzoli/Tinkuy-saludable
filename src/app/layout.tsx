@@ -27,6 +27,10 @@ const Analytics = dynamic(() => import('@/components/Analytics').then(mod => ({ 
   ssr: false,
 })
 
+const ClarityScript = dynamic(() => import('@/components/ClarityScript').then(mod => ({ default: mod.ClarityScript })), {
+  ssr: false,
+})
+
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-sans',
@@ -111,6 +115,7 @@ export default function RootLayout({
             <DevTools />
             <ExitIntentPopup />
             <Analytics />
+            <ClarityScript />
         </Providers>
       </body>
     </html>

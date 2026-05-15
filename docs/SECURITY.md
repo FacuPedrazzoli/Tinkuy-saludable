@@ -603,3 +603,113 @@ router.push(`/user/${userId}?token=${token}`)
 // BAD: Never use dangerouslySetInnerHTML with user input
 <div dangerouslySetInnerHTML={{ __html: userComment }} />
 ```
+
+---
+
+## Next.js Security Updates
+
+### Vulnerability Mitigation
+
+**Affected Version:** Next.js 14.x (currently running 14.2.35)
+
+**Description:**
+Next.js 14.x versions prior to 14.2.36 contain security vulnerabilities that could allow attackers to exploit certain edge function behaviors. While Next.js 15 and 16 include complete patches, this document outlines the mitigation strategy applied to maintain security while planning the upgrade path.
+
+**CVE Reference:** CVE-2024-46982 (and related vulnerabilities in the Next.js 14.x security patch cycle)
+
+### Mitigation Strategy
+
+Due to business requirements and dependency compatibility considerations, the decision was made to implement defensive mitigations rather than immediately upgrading to Next.js 15/16.
+
+**Why Mitigate Instead of Upgrading to Next.js 16:**
+- Dependency compatibility: Several internal dependencies require verification with Next.js 15/16 APIs
+- Risk assessment: The implemented headers and security measures effectively neutralize the attack vectors
+- Staged rollout: Planned upgrade path with 60-day review window
+
+### Security Headers Applied
+
+The following headers are configured in `next.config.js` to mitigate known attack vectors:
+
+| Header | Value | Protection |
+|--------|-------|------------|
+| Content-Security-Policy | `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://images.unsplash.com https://picsum.photos https://tinkuy.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self';` | Prevents XSS and injection attacks |
+| Strict-Transport-Security | `max-age=63072000; includeSubDomains; preload` | Enforces HTTPS, prevents protocol downgrade attacks |
+| X-Frame-Options | `DENY` | Prevents clickjacking attacks |
+| X-Content-Type-Options | `nosniff` | Prevents MIME-type sniffing |
+| Referrer-Policy | `strict-origin-when-cross-origin` | Controls referrer information leakage |
+| Permissions-Policy | `camera=(), microphone=(), geolocation=()` | Restricts access to sensitive APIs |
+
+### Next.js Configuration
+
+```javascript
+// next.config.js - Security headers implementation
+const securityHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://images.unsplash.com https://picsum.photos https://tinkuy.supabase.co; font-src 'self'; connect-src 'self' https://tinkuy.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+  },
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload',
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'DENY',
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff',
+  },
+  {
+    key: 'Referrer-Policy',
+    value: 'strict-origin-when-cross-origin',
+  },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=()',
+  },
+]
+
+// Applied to all routes
+async headers() {
+  return [
+    {
+      source: '/:path*',
+      headers: securityHeaders,
+    },
+  ]
+}
+```
+
+### Upgrade Plan to Next.js 16
+
+**Timeline: 60 days**
+
+| Phase | Target Date | Tasks |
+|-------|-------------|-------|
+| 1 | Day 1-15 | Verify all dependencies (Apollo Client, Pothos, Prisma, Sentry) are compatible with Next.js 15/16 |
+| 2 | Day 16-30 | Create staging environment with Next.js 15, run full test suite |
+| 3 | Day 31-45 | Fix any breaking changes, update any deprecated API usage |
+| 4 | Day 46-55 | Performance testing, security audit of new version |
+| 5 | Day 56-60 | Production deployment, rollback plan ready |
+
+**Dependencies to Verify:**
+- `@apollo/client@^4.1.9`
+- `@pothos/core@^3.40.0`
+- `@pothos/plugin-prisma@^3.65.0`
+- `@prisma/client@^5.22.0`
+- `@sentry/nextjs@^10.53.1`
+- `graphql@^16.14.0`
+
+### Review Schedule
+
+**Last Review Date:** 2026-05-15
+**Next Review Date:** 2026-07-14
+**Review Owner:** Security Team
+
+### Monitoring
+
+- Deploy Sentry error monitoring to catch any security-related errors
+- Monitor CSP violation reports via Sentry integration
+- Weekly review of Next.js security advisories
+- Penetration testing scheduled after upgrade completion

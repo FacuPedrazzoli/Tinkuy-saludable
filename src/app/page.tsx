@@ -1,5 +1,5 @@
-'use client'
-
+import { Metadata } from 'next'
+import Link from 'next/link'
 import { Hero } from '@/components/Hero'
 import { CategorySection } from '@/components/CategorySection'
 import { ProductGrid } from '@/components/ProductGrid'
@@ -7,17 +7,49 @@ import { FAQSection } from '@/components/FAQSection'
 import { getFeaturedProducts } from '@/data/products'
 import { siteConfig } from '@/data/siteConfig'
 import { safeJsonStringify } from '@/lib/utils'
-import Link from 'next/link'
-import { useState, useEffect, useMemo } from 'react'
-import { Product } from '@/types'
+
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Tinkuy — Dietética Natural | Suplementos y Productos Orgánicos',
+    description: 'Encontrá suplementos, proteínas y productos naturales de la mejor calidad. Frutos secos, semillas, harinas integrales y más. Envío a todo Buenos Aires.',
+    keywords: ['dietética', 'productos naturales', 'orgánicos', 'suplementos', 'proteínas', 'frutos secos', 'semillas', 'harinas integrales', 'Buenos Aires'],
+    openGraph: {
+      title: 'Tinkuy — Dietética Natural | Suplementos y Productos Orgánicos',
+      description: 'Encontrá suplementos, proteínas y productos naturales de la mejor calidad. Frutos secos, semillas, harinas integrales y más.',
+      url: baseUrl,
+      siteName: 'Tinkuy',
+      locale: 'es_AR',
+      type: 'website',
+      images: [
+        {
+          url: `${baseUrl}/og-image.jpg`,
+          width: 1200,
+          height: 630,
+          alt: 'Tinkuy - Productos naturales y orgánicos',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Tinkuy — Dietética Natural',
+      description: 'Encontrá suplementos, proteínas y productos naturales de la mejor calidad.',
+      images: [`${baseUrl}/og-image.jpg`],
+    },
+    alternates: {
+      canonical: baseUrl,
+    },
+  }
+}
 
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: siteConfig.name,
   description: siteConfig.description,
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app',
-  logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'}/logo-tinkuy.png`,
+  url: baseUrl,
+  logo: `${baseUrl}/logo-tinkuy.png`,
   contactPoint: {
     '@type': 'ContactPoint',
     telephone: siteConfig.phone,
@@ -36,16 +68,11 @@ const organizationSchema = {
     : [],
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
+export default async function HomePage() {
+  const featuredProducts = await getFeaturedProducts()
+  const displayedProducts = featuredProducts.slice(0, 8)
 
-export default function HomePage() {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
-
-  useEffect(() => {
-    getFeaturedProducts().then(products => setFeaturedProducts(products.slice(0, 8)))
-  }, [])
-
-  const productSchema = useMemo(() => featuredProducts.map((product) => ({
+  const productSchema = displayedProducts.map((product) => ({
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
@@ -66,7 +93,7 @@ export default function HomePage() {
           reviewCount: product.reviews,
         }
       : undefined,
-  })), [featuredProducts])
+  }))
 
   return (
     <>
@@ -109,7 +136,7 @@ export default function HomePage() {
               </svg>
             </Link>
           </div>
-          <ProductGrid products={featuredProducts.slice(0, 8)} />
+          <ProductGrid products={displayedProducts} />
           <div className="text-center mt-12 sm:hidden">
             <Link
               href="/catalog"

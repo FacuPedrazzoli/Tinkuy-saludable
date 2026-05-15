@@ -6,7 +6,8 @@ import { getAllProducts, getProductBySlug, getRelatedProducts } from '@/data/pro
 import { ProductActions } from '@/components/product/ProductActions'
 import { validateProductImage } from '@/lib/productImages'
 import { formatPrice, safeJsonStringify } from '@/lib/utils'
-import { calculatePrice } from '@/lib/store'
+
+export const revalidate = 3600
 
 interface ProductPageProps {
   params: { slug: string }
