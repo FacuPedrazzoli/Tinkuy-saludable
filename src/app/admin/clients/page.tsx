@@ -1,16 +1,20 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import { useQuery } from '@apollo/client/react'
 import { formatPrice } from '@/lib/utils'
+import { GET_CUSTOMERS } from '@/lib/graphql/queries'
+import { GraphQLCustomersResult } from '@/lib/graphql/types'
 
 interface Customer {
   id: string
   email: string
-  full_name: string
+  firstName: string
+  lastName: string
   phone: string | null
-  total_orders: number
-  total_spent: number
-  created_at: string
+  totalOrders: number
+  totalSpent: number
+  createdAt: string
 }
 
 function SkeletonRow() {
@@ -33,38 +37,36 @@ export default function AdminClientsPage() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'recent' | 'spending' | 'orders'>('recent')
 
-  const fetchClients = useCallback(async () => {
-    try {
-      const params = new URLSearchParams()
-      if (search) params.set('search', search)
-
-      const res = await fetch(`/api/customers?${params}`)
-      if (!res.ok) throw new Error('Error fetching clients')
-      const data = await res.json()
-      setClients(data.customers || [])
-    } catch (err) {
-      setError('Error cargando clientes')
-    } finally {
-      setLoading(false)
-    }
-  }, [search])
+  const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCustomersResult>(GET_CUSTOMERS, {
+    variables: { search: search || undefined },
+    onError: (error) => {
+      console.error('Customers query error:', error);
+      setError('Error cargando clientes');
+    },
+  });
 
   useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
+    if (gqlError) {
+      setError('Error cargando clientes')
+      setLoading(false)
+    } else if (data?.customers) {
+      setClients(data.customers)
+      setLoading(false)
+    }
+  }, [data, gqlError])
 
-  const sortedClients = [...clients].sort((a, b) => {
-    if (sortBy === 'spending') return (b.total_spent || 0) - (a.total_spent || 0)
-    if (sortBy === 'orders') return (b.total_orders || 0) - (a.total_orders || 0)
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
+  const sortedClients = useMemo(() => [...clients].sort((a, b) => {
+    if (sortBy === 'spending') return (b.totalSpent || 0) - (a.totalSpent || 0)
+    if (sortBy === 'orders') return (b.totalOrders || 0) - (a.totalOrders || 0)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  }), [clients, sortBy])
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: clients.length,
-    totalSpent: clients.reduce((sum, c) => sum + (c.total_spent || 0), 0),
-    avgSpent: clients.length > 0 ? clients.reduce((sum, c) => sum + (c.total_spent || 0), 0) / clients.length : 0,
-    totalOrders: clients.reduce((sum, c) => sum + (c.total_orders || 0), 0),
-  }
+    totalSpent: clients.reduce((sum, c) => sum + (c.totalSpent || 0), 0),
+    avgSpent: clients.length > 0 ? clients.reduce((sum, c) => sum + (c.totalSpent || 0), 0) / clients.length : 0,
+    totalOrders: clients.reduce((sum, c) => sum + (c.totalOrders || 0), 0),
+  }), [clients])
 
   return (
     <div className="space-y-6">
@@ -197,7 +199,7 @@ export default function AdminClientsPage() {
           </svg>
           <h3 className="text-lg font-semibold text-red-800 mb-2">Error al cargar</h3>
           <p className="text-red-600 mb-4">{error}</p>
-          <button onClick={fetchClients} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+          <button onClick={() => refetch()} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
             Reintentar
           </button>
         </div>
@@ -217,8 +219,8 @@ export default function AdminClientsPage() {
                 <div className="flex items-center gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-neutral-900 truncate">{client.full_name}</h3>
-                      {client.total_orders >= 5 && (
+                      <h3 className="font-semibold text-neutral-900 truncate">{client.firstName} {client.lastName}</h3>
+                      {client.totalOrders >= 5 && (
                         <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
                           VIP
                         </span>
@@ -232,16 +234,16 @@ export default function AdminClientsPage() {
                   <div className="text-right hidden sm:block">
                     <div className="flex items-center gap-4">
                       <div className="text-center px-4">
-                        <p className="text-2xl font-bold text-neutral-900">{client.total_orders}</p>
+                        <p className="text-2xl font-bold text-neutral-900">{client.totalOrders}</p>
                         <p className="text-xs text-neutral-500">pedidos</p>
                       </div>
                       <div className="text-center px-4 border-l border-neutral-200">
-                        <p className="text-2xl font-bold text-primary-600">{formatPrice(client.total_spent)}</p>
+                        <p className="text-2xl font-bold text-primary-600">{formatPrice(client.totalSpent)}</p>
                         <p className="text-xs text-neutral-500">gastado</p>
                       </div>
                       <div className="text-center px-4 border-l border-neutral-200">
                         <p className="text-sm font-medium text-neutral-700">
-                          {new Date(client.created_at).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })}
+                          {new Date(client.createdAt).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })}
                         </p>
                         <p className="text-xs text-neutral-500">cliente desde</p>
                       </div>
@@ -251,11 +253,11 @@ export default function AdminClientsPage() {
                 {/* Mobile stats */}
                 <div className="flex sm:hidden gap-4 mt-3 pt-3 border-t border-neutral-100">
                   <div className="flex-1 text-center">
-                    <p className="text-lg font-bold text-neutral-900">{client.total_orders}</p>
+                    <p className="text-lg font-bold text-neutral-900">{client.totalOrders}</p>
                     <p className="text-xs text-neutral-500">pedidos</p>
                   </div>
                   <div className="flex-1 text-center">
-                    <p className="text-lg font-bold text-primary-600">{formatPrice(client.total_spent)}</p>
+                    <p className="text-lg font-bold text-primary-600">{formatPrice(client.totalSpent)}</p>
                     <p className="text-xs text-neutral-500">gastado</p>
                   </div>
                 </div>

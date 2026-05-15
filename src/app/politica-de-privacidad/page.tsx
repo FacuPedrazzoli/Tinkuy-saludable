@@ -3,6 +3,21 @@ import { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Política de Privacidad | Tinkuy',
   description: 'Política de privacidad de Tinkuy. Información sobre cómo protegemos tus datos personales conforme a la Ley 25.326 de Argentina.',
+  alternates: {
+    canonical: '/politica-de-privacidad',
+  },
+  openGraph: {
+    title: 'Política de Privacidad | Tinkuy',
+    description: 'Política de privacidad de Tinkuy. Información sobre cómo protegemos tus datos personales conforme a la Ley 25.326 de Argentina.',
+    type: 'website',
+    locale: 'es_AR',
+    url: '/politica-de-privacidad',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Política de Privacidad | Tinkuy',
+    description: 'Política de privacidad de Tinkuy.',
+  },
 }
 
 export default function PrivacyPolicyPage() {

@@ -19,10 +19,12 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
+  const previousActiveElement = useRef<HTMLElement | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     if (isOpen) {
+      previousActiveElement.current = document.activeElement as HTMLElement
       inputRef.current?.focus()
       document.body.style.overflow = 'hidden'
     } else {
@@ -31,9 +33,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setDebouncedQuery('')
       setResults([])
       setSelectedIndex(-1)
-    }
-    return () => {
-      document.body.style.overflow = ''
+      previousActiveElement.current?.focus()
     }
   }, [isOpen])
 
@@ -41,8 +41,16 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     const timer = setTimeout(() => {
       setDebouncedQuery(query)
     }, 300)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+    }
   }, [query])
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (!debouncedQuery.trim()) {
@@ -144,7 +152,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             )}
 
             {!loading && results.length > 0 && (
-              <ul className="py-2" role="listbox">
+              <ul className="py-2" role="listbox" aria-label={`${results.length} resultados encontrados`}>
                 {results.map((product, index) => (
                   <li key={product.id}>
                     <button
@@ -158,6 +166,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       )}
                       role="option"
                       aria-selected={selectedIndex === index}
+                      aria-label={`${product.name}, ${product.category}`}
                     >
                       <div className="relative w-16 h-16 flex-shrink-0 bg-cream-100 rounded-lg overflow-hidden">
                         <Image

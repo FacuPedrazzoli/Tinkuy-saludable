@@ -5,8 +5,9 @@ import { notFound } from 'next/navigation'
 import { products, getRelatedProducts } from '@/data/products'
 import { ProductActions } from '@/components/product/ProductActions'
 import { validateProductImage } from '@/lib/productImages'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, safeJsonStringify } from '@/lib/utils'
 import { calculatePrice } from '@/lib/store'
+import { useMemo } from 'react'
 
 interface ProductPageProps {
   params: { slug: string }
@@ -30,7 +31,14 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     openGraph: {
       title: product.name,
       description: product.shortDescription,
-      images: [productImage],
+      images: [
+        {
+          url: productImage,
+          width: 800,
+          height: 800,
+          alt: product.name,
+        },
+      ],
       type: 'website',
     },
     twitter: {
@@ -46,8 +54,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 }
 
 export async function generateStaticParams() {
-  const popularProducts = products.filter(p => p.featured).slice(0, 10)
-  return popularProducts.map((product) => ({
+  return products.map((product) => ({
     slug: product.slug,
   }))
 }
@@ -60,34 +67,68 @@ const productSchema = (product: typeof products[0]) => ({
   image: product.images,
   offers: {
     '@type': 'Offer',
-    price: product.price,
+    price: String(product.price),
     priceCurrency: 'ARS',
     availability: product.stock > 0
       ? 'https://schema.org/InStock'
       : 'https://schema.org/OutOfStock',
   },
-  aggregateRating: {
-    '@type': 'AggregateRating',
-    ratingValue: product.rating,
-    reviewCount: product.reviews,
-  },
+  ...(product.rating > 0 && {
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: product.rating,
+      reviewCount: product.reviews,
+    },
+  }),
+})
+
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
+
+const breadcrumbSchema = (product: typeof products[0]) => ({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: 'Inicio',
+      item: baseUrl,
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: 'Tienda',
+      item: `${baseUrl}/catalog`,
+    },
+    {
+      '@type': 'ListItem',
+      position: 3,
+      name: product.name,
+      item: `${baseUrl}/product/${product.slug}`,
+    },
+  ],
 })
 
 export default function ProductPage({ params }: ProductPageProps) {
-  const product = products.find((p) => p.slug === params.slug)
+  const product = useMemo(() => products.find((p) => p.slug === params.slug), [params.slug])
 
   if (!product) {
     notFound()
   }
 
-  const relatedProducts = getRelatedProducts(product.id, product.category)
-  const productImage = validateProductImage(product.images[0], product.category, product.subcategory)
+  const relatedProducts = useMemo(() => getRelatedProducts(product.id, product.category), [product.id, product.category])
+  const productImage = useMemo(() => validateProductImage(product.images[0], product.category, product.subcategory), [product.images, product.category, product.subcategory])
+  const displayedRelatedProducts = useMemo(() => relatedProducts.slice(0, 4), [relatedProducts])
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema(product)) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonStringify(productSchema(product)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonStringify(breadcrumbSchema(product)) }}
       />
       <div className="min-h-screen bg-neutral-50 pt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -163,11 +204,11 @@ export default function ProductPage({ params }: ProductPageProps) {
             </div>
           </div>
 
-          {relatedProducts.length > 0 && (
+          {displayedRelatedProducts.length > 0 && (
             <section>
               <h2 className="text-2xl font-bold text-neutral-900 font-display mb-8">Productos Relacionados</h2>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {relatedProducts.slice(0, 4).map((relatedProduct) => {
+                {displayedRelatedProducts.map((relatedProduct) => {
                   const relatedImage = validateProductImage(relatedProduct.images[0], relatedProduct.category, relatedProduct.subcategory)
                   return (
                     <Link
@@ -182,6 +223,8 @@ export default function ProductPage({ params }: ProductPageProps) {
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
                           sizes="(max-width: 640px) 50vw, 25vw"
+                          placeholder="empty"
+                          unoptimized={relatedImage.includes('supabase') || relatedImage.includes('unsplash')}
                         />
                       </div>
                       <div className="p-4">

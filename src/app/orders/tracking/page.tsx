@@ -1,12 +1,37 @@
-'use client'
-
+import { Metadata } from 'next'
 import { useState } from 'react'
 import Link from 'next/link'
+import { useQuery } from '@apollo/client/react'
+import { GET_GUEST_ORDERS } from '@/lib/graphql/queries'
+import { GraphQLGuestOrdersResult } from '@/lib/graphql/types'
+
+export const metadata: Metadata = {
+  title: 'Seguimiento de Pedido',
+  description: 'Rastrea el estado de tu pedido.',
+}
 
 interface OrderStatus {
   status: string
   description: string
   date: string
+}
+
+interface OrderItem {
+  id: string
+  name: string
+  price: string
+  quantity: number
+  total: string
+}
+
+interface GuestOrder {
+  id: string
+  status: string
+  paymentStatus: string
+  totalAmount: string
+  guestEmail: string | null
+  createdAt: string
+  items: OrderItem[]
 }
 
 interface OrderData {
@@ -50,34 +75,49 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-red-500',
 }
 
+function adaptGuestOrderToOrderData(guestOrder: GuestOrder): OrderData {
+  return {
+    orderNumber: guestOrder.id,
+    status: guestOrder.status,
+    customerEmail: guestOrder.guestEmail || '',
+    customerName: guestOrder.guestEmail?.split('@')[0] || 'Cliente',
+    total: parseFloat(guestOrder.totalAmount),
+    createdAt: guestOrder.createdAt,
+    items: guestOrder.items.map(item => ({
+      productName: item.name,
+      quantity: item.quantity,
+      weight: 0,
+      totalPrice: parseFloat(item.total),
+    })),
+    updates: [],
+  }
+}
+
 export default function OrderTrackingPage() {
   const [orderNumber, setOrderNumber] = useState('')
   const [email, setEmail] = useState('')
-  const [order, setOrder] = useState<OrderData | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [searchedEmail, setSearchedEmail] = useState('')
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const { data, loading, error } = useQuery<GraphQLGuestOrdersResult>(GET_GUEST_ORDERS, {
+    variables: { email: searchedEmail },
+    skip: !searchedEmail,
+  })
+
+  const order = data?.guestOrders
+    ? (() => {
+        const found = data.guestOrders.find((o: GuestOrder) => o.id === orderNumber)
+        return found ? adaptGuestOrderToOrderData(found) : null
+      })()
+    : null
+
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setOrder(null)
-    setLoading(true)
-
-    try {
-      const res = await fetch(`/api/orders/track?orderNumber=${encodeURIComponent(orderNumber)}&email=${encodeURIComponent(email)}`)
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'No se encontró el pedido')
-        return
-      }
-
-      setOrder(data.order)
-    } catch {
-      setError('Error al buscar el pedido')
-    } finally {
-      setLoading(false)
-    }
+    if (loading) return
+    const sanitizedEmail = email.trim().toLowerCase().replace(/[^a-z0-9@._-]/g, '')
+    const sanitizedOrderNumber = orderNumber.trim().replace(/<[^>]*>/g, '')
+    setEmail(sanitizedEmail)
+    setOrderNumber(sanitizedOrderNumber)
+    setSearchedEmail(sanitizedEmail)
   }
 
   const currentStatusIndex = order ? statusOrder.indexOf(order.status) : -1
@@ -98,7 +138,7 @@ export default function OrderTrackingPage() {
           <div className="space-y-4">
             <div>
               <label htmlFor="orderNumber" className="block text-sm font-medium text-neutral-700 mb-1">
-                Número de Pedido
+                Número de Pedido <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -108,11 +148,12 @@ export default function OrderTrackingPage() {
                 placeholder="Ej: TNK-20240515-0001"
                 className="w-full px-4 py-3 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
                 required
+                aria-required="true"
               />
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-1">
-                Email
+                Email <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
@@ -122,6 +163,7 @@ export default function OrderTrackingPage() {
                 placeholder="Tu email de compra"
                 className="w-full px-4 py-3 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
                 required
+                aria-required="true"
               />
             </div>
             <button
@@ -135,12 +177,23 @@ export default function OrderTrackingPage() {
         </form>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl mb-8">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl mb-8" role="alert" aria-live="polite">
             <p className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {error}
+              {error.message}
+            </p>
+          </div>
+        )}
+
+        {!loading && searchedEmail && data?.guestOrders?.length === 0 && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl mb-8" role="alert" aria-live="polite">
+            <p className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              No se encontró el pedido
             </p>
           </div>
         )}
@@ -211,7 +264,10 @@ export default function OrderTrackingPage() {
 
                     return (
                       <div key={status} className="relative flex items-start gap-4 pl-12">
-                        <div className={`absolute left-2 w-5 h-5 rounded-full ${statusColors[status]} ${isLast ? 'animate-pulse' : ''}`} />
+                        <div
+                          className={`absolute left-2 w-5 h-5 rounded-full ${statusColors[status]} ${isLast ? 'animate-pulse' : ''}`}
+                          aria-hidden="true"
+                        />
                         <div>
                           <p className="font-medium text-neutral-900">{statusLabels[status]}</p>
                           {update && (

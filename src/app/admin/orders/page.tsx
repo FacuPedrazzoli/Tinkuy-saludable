@@ -1,8 +1,16 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { formatPrice } from '@/lib/utils'
 import { ToastContainer, useToast } from '@/components/Toast'
+
+interface ShippingAddress {
+  street: string
+  number: string
+  city: string
+  state: string
+  postal_code: string
+}
 
 interface Order {
   id: string
@@ -18,7 +26,7 @@ interface Order {
   payment_status: string
   payment_method: string | null
   notes: string | null
-  shipping_address: any
+  shipping_address: ShippingAddress | null
   created_at: string
   order_items?: OrderItem[]
 }
@@ -75,6 +83,8 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const statusUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const toast = useToast()
 
   const fetchOrders = useCallback(async () => {
@@ -98,20 +108,31 @@ export default function AdminOrdersPage() {
   }, [fetchOrders])
 
   const updateStatus = async (orderId: string, newStatus: string) => {
-    try {
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      })
-      if (!res.ok) throw new Error('Error updating status')
-      fetchOrders()
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder(null)
-      }
-    } catch (err) {
-      toast.error('Error actualizando estado')
+    if (isUpdatingStatus) return
+
+    if (statusUpdateTimeoutRef.current) {
+      clearTimeout(statusUpdateTimeoutRef.current)
     }
+
+    statusUpdateTimeoutRef.current = setTimeout(async () => {
+      setIsUpdatingStatus(true)
+      try {
+        const res = await fetch(`/api/orders/${orderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        })
+        if (!res.ok) throw new Error('Error updating status')
+        fetchOrders()
+        if (selectedOrder?.id === orderId) {
+          setSelectedOrder(null)
+        }
+      } catch (err) {
+        toast.error('Error actualizando estado')
+      } finally {
+        setIsUpdatingStatus(false)
+      }
+    }, 300)
   }
 
   const viewOrder = async (orderId: string) => {

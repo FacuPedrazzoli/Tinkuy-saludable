@@ -1,29 +1,42 @@
 import { NextRequest } from 'next/server'
+import { randomBytes } from 'crypto'
+import { cookies } from 'next/headers'
+
+export function generateCSRFToken(): string {
+  return randomBytes(32).toString('hex')
+}
+
+export function setCSRFCookie(token: string): { headers: { 'Set-Cookie': string } } {
+  const cookieStore = cookies()
+  cookieStore.set('csrf_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 60 * 60 * 24
+  })
+  return { headers: { 'Set-Cookie': `csrf_token=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400` } }
+}
 
 export function validateCSRF(request: NextRequest): boolean {
-  const origin = request.headers.get('origin')
-  const referer = request.headers.get('referer')
+  const cookieStore = cookies()
+  const csrfToken = cookieStore.get('csrf_token')?.value
+  const requestToken = request.headers.get('x-csrf-token')
 
-  const allowedOrigins = [
-    process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com',
-  ].filter(Boolean)
-
-  if (origin && allowedOrigins.includes(origin)) {
-    return true
+  if (!csrfToken || !requestToken) {
+    return false
   }
 
-  if (referer) {
-    try {
-      const refererUrl = new URL(referer)
-      if (allowedOrigins.includes(refererUrl.origin)) {
-        return true
-      }
-    } catch {
-      return false
-    }
+  if (csrfToken.length !== requestToken.length) {
+    return false
   }
 
-  return false
+  let result = 0
+  for (let i = 0; i < csrfToken.length; i++) {
+    result |= csrfToken.charCodeAt(i) ^ requestToken.charCodeAt(i)
+  }
+
+  return result === 0
 }
 
 export function csrfError() {

@@ -151,6 +151,34 @@ export default function AdminProductsPage() {
 
   const handleSave = async () => {
     if (!editingProduct) return
+
+    const validationErrors: string[] = []
+    if (!editingProduct.name.trim()) {
+      validationErrors.push('El nombre del producto es requerido')
+    }
+    if (editingProduct.price <= 0) {
+      validationErrors.push('El precio debe ser mayor a 0')
+    }
+    if (editingProduct.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(editingProduct.slug)) {
+      validationErrors.push('El slug solo puede contener letras minúsculas, números y guiones (sin guiones consecutivos)')
+    }
+
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors[0])
+      if (validationErrors[0].includes('nombre')) {
+        const nameInput = document.getElementById('product-name')
+        nameInput?.focus()
+      } else if (validationErrors[0].includes('slug')) {
+        const slugInput = document.getElementById('product-slug')
+        slugInput?.focus()
+      } else if (validationErrors[0].includes('precio')) {
+        const priceInput = document.getElementById('product-price')
+        priceInput?.focus()
+      }
+      return
+    }
+
+    if (saving) return
     setSaving(true)
 
     try {
@@ -159,16 +187,16 @@ export default function AdminProductsPage() {
         : '/api/products'
       const method = editingProduct.id ? 'PUT' : 'POST'
 
-const dataToSend = {
-        name: editingProduct.name,
-        slug: editingProduct.slug,
-        description: editingProduct.description || null,
-        short_description: editingProduct.short_description || null,
+      const sanitizedData = {
+        name: editingProduct.name.trim().replace(/<[^>]*>/g, ''),
+        slug: editingProduct.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
+        description: editingProduct.description?.trim().replace(/<[^>]*>/g, '') || null,
+        short_description: editingProduct.short_description?.trim().replace(/<[^>]*>/g, '') || null,
         price: editingProduct.price,
         original_price: editingProduct.original_price || null,
         category_id: editingProduct.category_id || null,
-        brand: editingProduct.brand || null,
-        ingredients: editingProduct.ingredients || null,
+        brand: editingProduct.brand?.trim().replace(/<[^>]*>/g, '') || null,
+        ingredients: editingProduct.ingredients?.trim().replace(/<[^>]*>/g, '') || null,
         stock: editingProduct.stock,
         is_featured: editingProduct.is_featured,
         is_active: editingProduct.is_active,
@@ -181,12 +209,13 @@ const dataToSend = {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(sanitizedData),
       })
 
       if (!res.ok) {
         const data = await res.json()
         const errorMessage = typeof data.error === 'string' ? data.error : 'Error saving product'
+
         throw new Error(errorMessage)
       }
 
@@ -226,8 +255,120 @@ const dataToSend = {
       setProductImages([])
       setInitialImageIds(new Set())
       fetchProducts()
-    } catch (err: any) {
-      toast.error(err.message)
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+    if (editingProduct.price <= 0) {
+      validationErrors.push('El precio debe ser mayor a 0')
+    }
+    if (editingProduct.slug && !/^[a-z0-9-]+$/.test(editingProduct.slug)) {
+      validationErrors.push('El slug solo puede contener letras minúsculas, números y guiones')
+    }
+
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors[0])
+      return
+    }
+
+    if (saving) return
+    setSaving(true)
+
+    try {
+      const url = editingProduct.id
+        ? `/api/products/${editingProduct.id}`
+        : '/api/products'
+      const method = editingProduct.id ? 'PUT' : 'POST'
+
+      const sanitizedData = {
+        name: editingProduct.name.trim().replace(/<[^>]*>/g, ''),
+        slug: editingProduct.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+        description: editingProduct.description?.trim().replace(/<[^>]*>/g, '') || null,
+        short_description: editingProduct.short_description?.trim().replace(/<[^>]*>/g, '') || null,
+        price: editingProduct.price,
+        original_price: editingProduct.original_price || null,
+        category_id: editingProduct.category_id || null,
+        brand: editingProduct.brand?.trim().replace(/<[^>]*>/g, '') || null,
+        ingredients: editingProduct.ingredients?.trim().replace(/<[^>]*>/g, '') || null,
+        stock: editingProduct.stock,
+        is_featured: editingProduct.is_featured,
+        is_active: editingProduct.is_active,
+        is_organic: editingProduct.is_organic,
+        is_gluten_free: editingProduct.is_gluten_free,
+        is_vegan: editingProduct.is_vegan,
+        is_keto: editingProduct.is_keto,
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanitizedData),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        const errorMessage = typeof data.error === 'string' ? data.error : 'Error saving product'
+        throw new Error(errorMessage)
+      }
+
+      const savedProduct = await res.json()
+
+      if (editingProduct.id) {
+        const currentImageIds = new Set(productImages.map(img => img.id).filter(Boolean) as string[])
+        const deletedImageIds = [...initialImageIds].filter(id => !currentImageIds.has(id))
+
+        for (const imageId of deletedImageIds) {
+          try {
+            const deleteRes = await fetch(`/api/products/images/${imageId}`, { method: 'DELETE' })
+            if (!deleteRes.ok) {
+              const errorData = await deleteRes.json().catch(() => ({}))
+              throw new Error(errorData.error || 'Error deleting image')
+            }
+          } catch (err) {
+            const error = err as Error
+            toast.error(`Error al eliminar imagen: ${error.message}`)
+            console.error('Error deleting image:', err)
+          }
+        }
+
+        for (let i = 0; i < productImages.length; i++) {
+          const img = productImages[i]
+          if (!img.id) {
+            try {
+              const uploadRes = await fetch('/api/products/images', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  product_id: editingProduct.id,
+                  url: img.url,
+                  is_primary: img.is_primary || i === 0,
+                  sort_order: i,
+                }),
+              })
+              if (!uploadRes.ok) {
+                const errorData = await uploadRes.json().catch(() => ({}))
+                throw new Error(errorData.error || 'Error uploading image')
+              }
+            } catch (err) {
+              const error = err as Error
+              toast.error(`Error al subir imagen: ${error.message}`)
+              console.error('Error uploading image:', err)
+            }
+          }
+        }
+      }
+
+      setShowModal(false)
+      setEditingProduct(null)
+      setProductImages([])
+      setInitialImageIds(new Set())
+      fetchProducts()
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     } finally {
       setSaving(false)
     }
@@ -240,8 +381,9 @@ const dataToSend = {
       const res = await fetch(`/api/products/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Error deleting product')
       fetchProducts()
-    } catch (err: any) {
-      toast.error(err.message)
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     }
   }
 
@@ -309,8 +451,14 @@ const dataToSend = {
     const image = productImages.find(img => img.url === url)
     if (image?.id) {
       try {
-        await fetch(`/api/products/images/${image.id}`, { method: 'DELETE' })
+        const res = await fetch(`/api/products/images/${image.id}`, { method: 'DELETE' })
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Error deleting image')
+        }
       } catch (err) {
+        const error = err as Error
+        toast.error(`Error al eliminar imagen: ${error.message}`)
         console.error('Error deleting image:', err)
       }
     }

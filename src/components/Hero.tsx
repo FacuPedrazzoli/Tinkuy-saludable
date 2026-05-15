@@ -74,14 +74,14 @@ export function Hero() {
           </div>
 
           <div className="relative flex items-center justify-center lg:justify-end">
-            <div className="relative group">
+            <div className="relative group" role="img" aria-label="Tinkuy - Productos naturales premium">
               <div className="absolute -inset-6 bg-gradient-to-br from-primary-200/20 to-secondary-200/20 rounded-[3rem] blur-2xl group-hover:blur-3xl transition-all duration-500" />
               <Image
                 src="/logo-tinkuy.png"
-                alt="Tinkuy - Productos naturales premium"
+                alt=""
                 width={380}
                 height={380}
-                className="relative object-contain drop-shadow-xl hover:drop-shadow-2xl transition-all duration-500 group-hover:scale-105"
+                className="relative object-contain w-full max-w-[280px] sm:max-w-[340px] lg:max-w-[380px] drop-shadow-xl hover:drop-shadow-2xl transition-all duration-500 group-hover:scale-105"
                 priority
               />
             </div>

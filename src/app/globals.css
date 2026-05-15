@@ -177,3 +177,59 @@ input[type='search']::-webkit-search-results-decoration {
     margin: 1cm;
   }
 }
+
+/* Mobile-first responsive breakpoints */
+@layer utilities {
+  /* Touch target minimum size (44x44px per WCAG) */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Safe area padding for mobile devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Prevent text selection on mobile */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Smooth scrolling lock for mobile */
+  .scroll-lock {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+}
+
+/* Mobile-specific fixes */
+@media (max-width: 640px) {
+  /* Ensure buttons have adequate touch targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent horizontal overflow */
+  .prevent-overflow {
+    overflow-x: hidden;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Adjust typography scale for tablets */
+  h1 {
+    font-size: 2.5rem;
+  }
+
+  h2 {
+    font-size: 2rem;
+  }
+}

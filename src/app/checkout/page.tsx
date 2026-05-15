@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore, calculatePrice, Weight } from '@/lib/store'
@@ -35,7 +35,6 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(1)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [orderId, setOrderId] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'transfer' | 'cash'>('cash')
   const [contactData, setContactData] = useState<ContactFormData>({
@@ -53,6 +52,15 @@ export default function CheckoutPage() {
     notes: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const emailInputRef = useRef<HTMLInputElement>(null)
+  const phoneInputRef = useRef<HTMLInputElement>(null)
+  const streetInputRef = useRef<HTMLInputElement>(null)
+  const cityInputRef = useRef<HTMLInputElement>(null)
+  const postalCodeInputRef = useRef<HTMLInputElement>(null)
+  const stateInputRef = useRef<HTMLInputElement>(null)
+  const countryInputRef = useRef<HTMLInputElement>(null)
 
   const validateContact = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -76,45 +84,85 @@ export default function CheckoutPage() {
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+
+    if (Object.keys(newErrors).length > 0) {
+      if (newErrors.name && nameInputRef.current) {
+        nameInputRef.current.focus()
+      } else if (newErrors.email && emailInputRef.current) {
+        emailInputRef.current.focus()
+      } else if (newErrors.phone && phoneInputRef.current) {
+        phoneInputRef.current.focus()
+      }
+      return false
+    }
+    return true
   }
 
   const validateShipping = (): boolean => {
     const newErrors: Record<string, string> = {}
+    let firstErrorField: string | null = null
 
     if (!shippingData.street.trim()) {
       newErrors.street = 'La dirección es requerida'
+      if (!firstErrorField) firstErrorField = 'street'
     }
 
     if (!shippingData.city.trim()) {
       newErrors.city = 'La ciudad es requerida'
+      if (!firstErrorField) firstErrorField = 'city'
     }
 
     if (!shippingData.postal_code.trim()) {
       newErrors.postal_code = 'El código postal es requerido'
+      if (!firstErrorField) firstErrorField = 'postal_code'
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+
+    if (firstErrorField) {
+      const element = document.getElementById(firstErrorField)
+      if (element) {
+        element.focus()
+      }
+      return false
+    }
+    return true
   }
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     if (validateContact()) {
       setStep(2)
     }
-  }
+  }, [validateContact])
 
-  const handleShippingSubmit = (e: React.FormEvent) => {
+  const handleShippingSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
     if (validateShipping()) {
       setStep(3)
     }
-  }
+  }, [validateShipping])
 
-  const handlePlaceOrder = async () => {
-    setLoading(true)
+  const handlePlaceOrder = useCallback(async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
     setError(null)
+
+    const sanitizedContactData = {
+      name: contactData.name.trim().replace(/<[^>]*>/g, ''),
+      email: contactData.email.trim().toLowerCase().replace(/[^a-z0-9@._-]/g, ''),
+      phone: contactData.phone.trim().replace(/[^0-9+\-\s]/g, ''),
+    }
+
+    const sanitizedShippingData = {
+      street: shippingData.street.trim().replace(/<[^>]*>/g, ''),
+      number: shippingData.number.trim().replace(/<[^>]*>/g, ''),
+      city: shippingData.city.trim().replace(/<[^>]*>/g, ''),
+      state: shippingData.state.trim(),
+      postal_code: shippingData.postal_code.trim().replace(/<[^>]*>/g, ''),
+      country: shippingData.country.trim(),
+      notes: shippingData.notes.trim().replace(/<[^>]*>/g, ''),
+    }
 
     try {
       const orderItems = items.map((item) => ({
@@ -131,23 +179,23 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_email: contactData.email,
-          customer_name: contactData.name,
-          customer_phone: contactData.phone,
+          customer_email: sanitizedContactData.email,
+          customer_name: sanitizedContactData.name,
+          customer_phone: sanitizedContactData.phone,
           items: orderItems,
           subtotal: getTotal(),
           discount_amount: 0,
           shipping_cost: 0,
           total: getTotal(),
           payment_method: paymentMethod,
-          notes: shippingData.notes,
+          notes: sanitizedShippingData.notes,
           shipping_address: {
-            street: shippingData.street,
-            number: shippingData.number,
-            city: shippingData.city,
-            state: shippingData.state,
-            postal_code: shippingData.postal_code,
-            country: shippingData.country,
+            street: sanitizedShippingData.street,
+            number: sanitizedShippingData.number,
+            city: sanitizedShippingData.city,
+            state: sanitizedShippingData.state,
+            postal_code: sanitizedShippingData.postal_code,
+            country: sanitizedShippingData.country,
           },
         }),
       })
@@ -167,18 +215,20 @@ export default function CheckoutPage() {
 
       setOrderPlaced(true)
       clearCart()
-    } catch (err: any) {
-      setError(err.message || 'Error al procesar el pedido')
-      setLoading(false)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al procesar el pedido'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
     }
-  }
+  }, [contactData, shippingData, items, paymentMethod, getTotal, clearCart, isSubmitting])
 
-  const handleInputChange = (
+  const handleInputChange = <T extends Record<string, unknown>>(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    setter: React.Dispatch<React.SetStateAction<any>>
+    setter: React.Dispatch<React.SetStateAction<T>>
   ) => {
     const { name, value } = e.target
-    setter((prev: any) => ({ ...prev, [name]: value }))
+    setter((prev: T) => ({ ...prev, [name]: value }))
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev }
@@ -248,10 +298,14 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-8" role="tablist" aria-label="Pasos del checkout">
           {['Contacto', 'Envío', 'Pago'].map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div
+                role="tab"
+                aria-selected={step === i + 1}
+                aria-current={step === i + 1 ? 'step' : undefined}
+                aria-label={`Paso ${i + 1}: ${s}`}
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   step > i + 1
                     ? 'bg-primary-600 text-white'
@@ -290,6 +344,7 @@ export default function CheckoutPage() {
                       type="text"
                       id="name"
                       name="name"
+                      ref={nameInputRef}
                       value={contactData.name}
                       onChange={(e) => handleInputChange(e, setContactData)}
                       className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500/20 outline-none transition-colors ${
@@ -297,7 +352,7 @@ export default function CheckoutPage() {
                       }`}
                       placeholder="Juan Pérez"
                     />
-                    {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                    {errors.name && <p className="text-red-500 text-sm mt-1" role="alert">{errors.name}</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -308,6 +363,7 @@ export default function CheckoutPage() {
                         type="email"
                         id="email"
                         name="email"
+                        ref={emailInputRef}
                         value={contactData.email}
                         onChange={(e) => handleInputChange(e, setContactData)}
                         className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500/20 outline-none transition-colors ${
@@ -315,7 +371,7 @@ export default function CheckoutPage() {
                         }`}
                         placeholder="juan@email.com"
                       />
-                      {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                      {errors.email && <p className="text-red-500 text-sm mt-1" role="alert">{errors.email}</p>}
                     </div>
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-2">
@@ -325,6 +381,7 @@ export default function CheckoutPage() {
                         type="tel"
                         id="phone"
                         name="phone"
+                        ref={phoneInputRef}
                         value={contactData.phone}
                         onChange={(e) => handleInputChange(e, setContactData)}
                         className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500/20 outline-none transition-colors ${
@@ -332,7 +389,7 @@ export default function CheckoutPage() {
                         }`}
                         placeholder="+54 11 1234-5678"
                       />
-                      {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                      {errors.phone && <p className="text-red-500 text-sm mt-1" role="alert">{errors.phone}</p>}
                     </div>
                   </div>
                 </div>
@@ -351,8 +408,8 @@ export default function CheckoutPage() {
                   Dirección de Envío
                 </h2>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
                       <label htmlFor="street" className="block text-sm font-medium text-neutral-700 mb-2">
                         Calle *
                       </label>
@@ -360,6 +417,7 @@ export default function CheckoutPage() {
                         type="text"
                         id="street"
                         name="street"
+                        ref={streetInputRef}
                         value={shippingData.street}
                         onChange={(e) => handleInputChange(e, setShippingData)}
                         className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500/20 outline-none transition-colors ${
@@ -367,7 +425,7 @@ export default function CheckoutPage() {
                         }`}
                         placeholder="Av. Santa Fe"
                       />
-                      {errors.street && <p className="text-red-500 text-sm mt-1">{errors.street}</p>}
+                      {errors.street && <p className="text-red-500 text-sm mt-1" role="alert">{errors.street}</p>}
                     </div>
                     <div>
                       <label htmlFor="number" className="block text-sm font-medium text-neutral-700 mb-2">
@@ -384,7 +442,7 @@ export default function CheckoutPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="city" className="block text-sm font-medium text-neutral-700 mb-2">
                         Ciudad *
@@ -393,6 +451,7 @@ export default function CheckoutPage() {
                         type="text"
                         id="city"
                         name="city"
+                        ref={cityInputRef}
                         value={shippingData.city}
                         onChange={(e) => handleInputChange(e, setShippingData)}
                         className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500/20 outline-none transition-colors ${
@@ -400,7 +459,7 @@ export default function CheckoutPage() {
                         }`}
                         placeholder="CABA"
                       />
-                      {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                      {errors.city && <p className="text-red-500 text-sm mt-1" role="alert">{errors.city}</p>}
                     </div>
                     <div>
                       <label htmlFor="postal_code" className="block text-sm font-medium text-neutral-700 mb-2">
@@ -410,6 +469,7 @@ export default function CheckoutPage() {
                         type="text"
                         id="postal_code"
                         name="postal_code"
+                        ref={postalCodeInputRef}
                         value={shippingData.postal_code}
                         onChange={(e) => handleInputChange(e, setShippingData)}
                         className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500/20 outline-none transition-colors ${
@@ -417,7 +477,7 @@ export default function CheckoutPage() {
                         }`}
                         placeholder="C1054"
                       />
-                      {errors.postal_code && <p className="text-red-500 text-sm mt-1">{errors.postal_code}</p>}
+                      {errors.postal_code && <p className="text-red-500 text-sm mt-1" role="alert">{errors.postal_code}</p>}
                     </div>
                   </div>
                   <div>
@@ -433,6 +493,8 @@ export default function CheckoutPage() {
                       className="w-full px-4 py-3 border border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none resize-none"
                       placeholder="Indicaciones para el delivery..."
                     />
+                    <input type="hidden" name="state" value={shippingData.state} />
+                    <input type="hidden" name="country" value={shippingData.country} />
                   </div>
                 </div>
                 <div className="flex gap-4 mt-6">
@@ -458,7 +520,8 @@ export default function CheckoutPage() {
                 <h2 className="text-xl font-semibold text-neutral-900 mb-6">
                   Método de Pago
                 </h2>
-                <div className="space-y-4 mb-6">
+                <fieldset className="space-y-4 mb-6">
+                  <legend className="sr-only">Selecciona un método de pago</legend>
                   <div
                     onClick={() => setPaymentMethod('mercadopago')}
                     className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
@@ -522,7 +585,7 @@ export default function CheckoutPage() {
                       <span className="block text-sm text-neutral-500">Pago contra entrega</span>
                     </label>
                   </div>
-                </div>
+                </fieldset>
                 <div className="bg-neutral-50 p-4 rounded-xl mb-6">
                   <h3 className="font-medium text-neutral-900 mb-2">Resumen del pedido:</h3>
                   <p className="text-sm text-neutral-600">
@@ -543,10 +606,10 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={handlePlaceOrder}
-                    disabled={loading}
+                    disabled={isSubmitting}
                     className="flex-1 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors disabled:bg-primary-300 disabled:cursor-not-allowed"
                   >
-                    {loading ? 'Procesando...' : 'Realizar Pedido'}
+                    {isSubmitting ? 'Procesando...' : 'Realizar Pedido'}
                   </button>
                 </div>
               </div>

@@ -6,14 +6,14 @@ export function CategorySection() {
   const featuredCategories = categories.slice(0, 6)
 
   return (
-    <section className="py-20 bg-cream-50">
+    <section className="py-20 bg-cream-50" aria-labelledby="categories-heading">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <span className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-500/10 text-secondary-500 rounded-full text-sm font-medium mb-4">
             <span className="w-2 h-2 bg-secondary-500 rounded-full" />
             Nuestras Categorías
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 font-display mb-4">
+          <h2 id="categories-heading" className="text-3xl sm:text-4xl font-bold text-neutral-900 font-display mb-4">
             Explorá por categoría
           </h2>
           <p className="text-neutral-600 max-w-2xl mx-auto">
@@ -21,19 +21,22 @@ export function CategorySection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4" role="list" aria-label="Categorías de productos">
           {featuredCategories.map((category, index) => (
             <Link
               key={category.id}
               href={`/catalog?category=${category.slug}`}
               className="group relative"
+              role="listitem"
+              aria-label={`${category.name}, ${category.productCount} productos`}
             >
               <div className="relative aspect-square rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
                 <Image
                   src={category.image}
-                  alt={category.name}
+                  alt=""
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  aria-hidden="true"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
                 <div className="absolute inset-0 flex flex-col justify-end p-4">

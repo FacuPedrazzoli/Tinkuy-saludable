@@ -1,10 +1,22 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { blogPosts } from '@/data/blog'
+import { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Blog',
   description: 'Consejos de nutrición, recetas saludables y novedades del mundo wellness.',
+  openGraph: {
+    title: 'Blog de Bienestar | Tinkuy',
+    description: 'Consejos de nutrición, recetas saludables y las últimas tendencias en alimentación consciente.',
+    type: 'website',
+    locale: 'es_AR',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog de Bienestar | Tinkuy',
+    description: 'Consejos de nutrición, recetas saludables y las últimas tendencias en alimentación consciente.',
+  },
 }
 
 export default function BlogPage() {

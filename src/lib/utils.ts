@@ -58,3 +58,36 @@ export function sanitizeHtml(text: string): string {
     .replace(/javascript:/gi, '')
     .replace(/on\w+=/gi, '')
 }
+
+export function escapeJsonString(str: string): string {
+  if (!str) return ''
+  return String(str)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+}
+
+export function safeJsonStringify(obj: unknown): string {
+  if (typeof obj === 'string') {
+    return `"${escapeJsonString(obj)}"`
+  }
+  if (obj === null || obj === undefined) {
+    return 'null'
+  }
+  if (typeof obj === 'number' || typeof obj === 'boolean') {
+    return String(obj)
+  }
+  if (Array.isArray(obj)) {
+    return `[${obj.map(safeJsonStringify).join(',')}]`
+  }
+  if (typeof obj === 'object') {
+    const entries = Object.entries(obj as Record<string, unknown>)
+    const escaped = entries.map(([k, v]) => `"${escapeJsonString(k)}":${safeJsonStringify(v)}`)
+    return `{${escaped.join(',')}}`
+  }
+  return '""'
+}

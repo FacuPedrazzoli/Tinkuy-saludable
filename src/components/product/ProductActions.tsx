@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { useCartStore, WEIGHTS, type Weight, calculatePrice } from '@/lib/store'
 import { formatPrice, calculateDiscount } from '@/lib/utils'
@@ -21,23 +21,23 @@ export function ProductActions({ product }: ProductActionsProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { addItem } = useCartStore()
 
+  const handleAddToCart = useCallback(() => {
+    setIsAdding(true)
+    addItem(product, quantity, selectedWeight)
+    setTimeout(() => setIsAdding(false), 500)
+  }, [addItem, product, quantity, selectedWeight])
+
   const productImage = validateProductImage(
     product.images[0],
     product.category,
     product.subcategory
   )
 
-  const currentPrice = calculatePrice(product.price, selectedWeight)
-  const discount = product.originalPrice
+  const currentPrice = useMemo(() => calculatePrice(product.price, selectedWeight), [product.price, selectedWeight])
+  const discount = useMemo(() => product.originalPrice
     ? calculateDiscount(product.originalPrice, product.price)
-    : 0
+    : 0, [product.originalPrice, product.price])
   const isLowStock = product.stock > 0 && product.stock < 20
-
-  const handleAddToCart = () => {
-    setIsAdding(true)
-    addItem(product, quantity, selectedWeight)
-    setTimeout(() => setIsAdding(false), 500)
-  }
 
   return (
     <>
@@ -55,6 +55,8 @@ export function ProductActions({ product }: ProductActionsProps) {
               className={`object-cover transition-transform duration-300 ${isZoomed ? 'scale-150' : 'scale-100'}`}
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
+              placeholder="empty"
+              unoptimized={productImage.includes('supabase') || productImage.includes('unsplash')}
             />
           {product.promo && (
             <span className="absolute top-4 left-4 px-3 py-1 bg-primary-600 text-white text-sm font-bold rounded-full">
@@ -62,13 +64,13 @@ export function ProductActions({ product }: ProductActionsProps) {
             </span>
           )}
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2">
           {product.images.map((image, index) => (
             <button
               key={index}
               onClick={() => setSelectedImage(index)}
               className={cn(
-                'relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all',
+                'relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all min-w-[44px] min-h-[44px]',
                 selectedImage === index
                   ? 'border-primary-600 ring-2 ring-primary-600/20'
                   : 'border-neutral-100 hover:border-neutral-200'
@@ -80,6 +82,8 @@ export function ProductActions({ product }: ProductActionsProps) {
                 fill
                 className="object-cover"
                 sizes="80px"
+                placeholder="empty"
+                unoptimized={productImage.includes('supabase') || productImage.includes('unsplash')}
               />
             </button>
           ))}
@@ -182,16 +186,18 @@ export function ProductActions({ product }: ProductActionsProps) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 rounded-lg border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors"
+                className="w-11 h-11 rounded-lg border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors"
+                aria-label="Reducir cantidad"
               >
-                -
+                <span className="text-lg">−</span>
               </button>
-              <span className="w-12 text-center font-medium text-neutral-900">{quantity}</span>
+              <span className="w-12 text-center font-medium text-neutral-900" aria-label={`Cantidad: ${quantity}`}>{quantity}</span>
               <button
                 onClick={() => setQuantity(quantity + 1)}
-                className="w-10 h-10 rounded-lg border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors"
+                className="w-11 h-11 rounded-lg border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors"
+                aria-label="Aumentar cantidad"
               >
-                +
+                <span className="text-lg">+</span>
               </button>
             </div>
           </div>
@@ -242,11 +248,25 @@ export function ProductActions({ product }: ProductActionsProps) {
       {isModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Zoom de imagen"
           onClick={() => setIsModalOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setIsModalOpen(false)
+            }
+          }}
+          ref={(el) => {
+            if (el) {
+              el.focus()
+            }
+          }}
         >
           <button
-            className="absolute top-4 right-4 text-white hover:text-neutral-300"
+            className="absolute top-4 right-4 text-white hover:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-white/50"
             onClick={() => setIsModalOpen(false)}
+            aria-label="Cerrar visor de imagen"
           >
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -259,9 +279,11 @@ export function ProductActions({ product }: ProductActionsProps) {
               fill
               className="object-contain"
               sizes="100vw"
+              placeholder="empty"
+              unoptimized={productImage.includes('supabase') || productImage.includes('unsplash')}
             />
           </div>
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2" role="group" aria-label="Miniaturas">
             {product.images.map((image, index) => (
               <button
                 key={index}
@@ -270,6 +292,7 @@ export function ProductActions({ product }: ProductActionsProps) {
                   'w-16 h-16 rounded-lg overflow-hidden border-2',
                   selectedImage === index ? 'border-white' : 'border-transparent'
                 )}
+                aria-label={`Ver imagen ${index + 1}`}
               >
                 <Image
                   src={index === 0 ? productImage : image}
@@ -277,6 +300,8 @@ export function ProductActions({ product }: ProductActionsProps) {
                   fill
                   className="object-cover"
                   sizes="64px"
+                  placeholder="empty"
+                  unoptimized={productImage.includes('supabase') || productImage.includes('unsplash')}
                 />
               </button>
             ))}

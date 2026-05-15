@@ -1,11 +1,20 @@
-'use client'
-
-import { useWishlistStore } from '@/lib/store'
+import { Metadata } from 'next'
+import { useWishlistStore, useHydrationStore } from '@/lib/store'
 import { ProductCard } from '@/components/ProductCard'
 import Link from 'next/link'
 
+export const metadata: Metadata = {
+  title: 'Mi Lista de Deseos',
+  description: 'Guarda tus productos favoritos para comprarlos después.',
+}
+
 export default function WishlistPage() {
-  const { items } = useWishlistStore()
+  const isHydrated = useHydrationStore((state) => state.isHydrated)
+  const items = useWishlistStore((state) => state.items)
+
+  if (!isHydrated) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50 pt-20">

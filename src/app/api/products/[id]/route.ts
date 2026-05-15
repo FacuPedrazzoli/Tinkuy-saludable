@@ -4,6 +4,15 @@ import { z } from 'zod'
 import { apiSuccess, apiError } from '@/lib/apiResponse'
 import { validateCSRF, csrfError } from '@/lib/csrf'
 
+const nutritionalInfoSchema = z.object({
+  servingSize: z.string(),
+  calories: z.number(),
+  protein: z.string(),
+  carbs: z.string(),
+  fat: z.string(),
+  fiber: z.string().optional(),
+}).passthrough()
+
 const updateProductSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/).optional(),
@@ -16,7 +25,7 @@ const updateProductSchema = z.object({
   tags: z.array(z.string()).optional(),
   ingredients: z.string().nullable().optional(),
   benefits: z.array(z.string()).nullable().optional(),
-  nutritional_info: z.record(z.string(), z.any()).nullable().optional(),
+  nutritional_info: nutritionalInfoSchema.nullable().optional(),
   stock: z.number().int().min(0).optional(),
   stock_alert: z.number().int().min(0).optional(),
   is_featured: z.boolean().optional(),

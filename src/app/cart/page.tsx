@@ -4,13 +4,27 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCartStore, calculatePrice, Weight } from '@/lib/store'
 import { formatPrice } from '@/lib/utils'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, getTotal } = useCartStore()
+  const { items, updateQuantity, removeItem, getTotal, clearCart } = useCartStore()
   const [mounted, setMounted] = useState(false)
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleUpdateQuantity = useCallback((productId: string, quantity: number, weight: number) => {
+    updateQuantity(productId, quantity, weight)
+  }, [updateQuantity])
+
+  const handleRemoveItem = useCallback((productId: string, weight: number) => {
+    removeItem(productId, weight)
+  }, [removeItem])
+
+  const handleClearCart = useCallback(() => {
+    clearCart()
+  }, [clearCart])
 
   if (!mounted) return null
 
@@ -41,16 +55,24 @@ export default function CartPage() {
   return (
     <div className="min-h-screen bg-neutral-50 pt-20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold text-neutral-900 font-display mb-8">
-          Carrito de Compras
-        </h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-neutral-900 font-display">
+            Carrito de Compras
+          </h1>
+          <button
+            onClick={handleClearCart}
+            className="text-sm text-neutral-500 hover:text-red-500 transition-colors"
+          >
+            Vaciar carrito
+          </button>
+        </div>
 
         <div className="space-y-4 mb-8">
           {items.map((item) => (
-            <div key={item.product.id} className="flex gap-4 p-4 bg-white rounded-xl border border-neutral-100">
+            <div key={`${item.product.id}-${item.weight}`} className="flex gap-4 p-4 bg-white rounded-xl border border-neutral-100">
               <div className="relative w-24 h-24 flex-shrink-0 bg-neutral-50 rounded-lg overflow-hidden">
                 <Image
-                  src={item.product.images[0]}
+                  src={item.product.images[0] || '/placeholder.png'}
                   alt={item.product.name}
                   fill
                   className="object-cover"
@@ -66,21 +88,21 @@ export default function CartPage() {
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex items-center border border-neutral-200 rounded-lg">
                     <button
-                      onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.weight)}
+                      onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1, item.weight)}
                       className="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-neutral-700"
                     >
                       -
                     </button>
                     <span className="w-10 text-center text-sm font-medium">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.weight)}
+                      onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1, item.weight)}
                       className="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-neutral-700"
                     >
                       +
                     </button>
                   </div>
                   <button
-                    onClick={() => removeItem(item.product.id, item.weight)}
+                    onClick={() => handleRemoveItem(item.product.id, item.weight)}
                     className="text-neutral-400 hover:text-red-500 transition-colors text-sm"
                   >
                     Eliminar

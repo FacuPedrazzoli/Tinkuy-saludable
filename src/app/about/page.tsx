@@ -1,9 +1,33 @@
 import Link from 'next/link'
 import { siteConfig } from '@/data/siteConfig'
+import { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Nosotros',
   description: 'Conocé la historia de Tinkuy, tu dietética premium de productos saludables.',
+  alternates: {
+    canonical: '/about',
+  },
+  openGraph: {
+    title: 'Nosotros | Tinkuy',
+    description: 'Conocé la historia de Tinkuy, tu dietética premium de productos saludables.',
+    type: 'website',
+    locale: 'es_AR',
+    url: '/about',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Sobre Nosotros - Tinkuy',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Nosotros | Tinkuy',
+    description: 'Conocé la historia de Tinkuy, tu dietética premium de productos saludables.',
+  },
 }
 
 export default function AboutPage() {

@@ -1,12 +1,23 @@
 import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
+import dynamic from 'next/dynamic'
 import './globals.css'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import { CartDrawer } from '@/components/CartDrawer'
-import { CookieConsent } from '@/components/CookieConsent'
 import { siteConfig } from '@/data/siteConfig'
-import { DevTools } from '@/components/DevTools'
+import { Providers } from '@/components/Providers'
+
+const CartDrawer = dynamic(() => import('@/components/CartDrawer').then(mod => ({ default: mod.CartDrawer })), {
+  ssr: false,
+})
+
+const CookieConsent = dynamic(() => import('@/components/CookieConsent').then(mod => ({ default: mod.CookieConsent })), {
+  ssr: false,
+})
+
+const DevTools = dynamic(() => import('@/components/DevTools').then(mod => ({ default: mod.DevTools })), {
+  ssr: false,
+})
 
 const inter = Inter({
   subsets: ['latin'],
@@ -46,11 +57,20 @@ export const metadata: Metadata = {
     siteName: siteConfig.name,
     title: `${siteConfig.name} | ${siteConfig.slogan}`,
     description: siteConfig.description,
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} - ${siteConfig.slogan}`,
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: `${siteConfig.name} | ${siteConfig.slogan}`,
     description: siteConfig.description,
+    images: ['/logo-tinkuy.png'],
   },
   robots: {
     index: true,
@@ -66,18 +86,20 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${playfair.variable}`}>
       <body className="min-h-screen flex flex-col font-sans relative">
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:font-medium focus:shadow-lg"
-        >
-          Saltar al contenido principal
-        </a>
-          <Header />
-          <main id="main-content" className="flex-1 relative z-10">{children}</main>
-          <Footer />
-          <CartDrawer />
-          <CookieConsent />
-          <DevTools />
+        <Providers>
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:font-medium focus:shadow-lg"
+          >
+            Saltar al contenido principal
+          </a>
+            <Header />
+            <main id="main-content" className="flex-1 relative z-10">{children}</main>
+            <Footer />
+            <CartDrawer />
+            <CookieConsent />
+            <DevTools />
+        </Providers>
       </body>
     </html>
   )

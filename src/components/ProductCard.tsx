@@ -4,8 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Product } from '@/types'
 import { formatPrice, calculateDiscount } from '@/lib/utils'
-import { useCartStore, useWishlistStore, WEIGHTS, Weight, calculatePrice } from '@/lib/store'
-import { useState, useEffect, useRef } from 'react'
+import { useCartStore, useWishlistStore, useHydrationStore, WEIGHTS, Weight, calculatePrice } from '@/lib/store'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { validateProductImage } from '@/lib/productImages'
 
 interface ProductCardProps {
@@ -17,11 +17,12 @@ interface ProductCardProps {
 export function ProductCard({ product, className, priority }: ProductCardProps) {
   const [selectedWeight, setSelectedWeight] = useState<Weight>(250)
   const [isAdding, setIsAdding] = useState(false)
-  const { addItem } = useCartStore()
-  const { isInWishlist, toggleItem } = useWishlistStore()
+  const isHydrated = useHydrationStore((state) => state.isHydrated)
+  const addItem = useCartStore((state) => state.addItem)
+  const wishlistItems = useWishlistStore((state) => state.items)
+  const toggleItem = useWishlistStore((state) => state.toggleItem)
+  const inWishlist = useMemo(() => wishlistItems.some((p) => p.id === product.id), [wishlistItems, product.id])
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  const inWishlist = isInWishlist(product.id)
 
   useEffect(() => {
     return () => {
@@ -31,21 +32,30 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
     }
   }, [])
 
-  const discount = product.originalPrice
-    ? calculateDiscount(product.originalPrice, product.price)
-    : 0
+  const discount = useMemo(() =>
+    product.originalPrice
+      ? calculateDiscount(product.originalPrice, product.price)
+      : 0,
+    [product.originalPrice, product.price]
+  )
 
-  const currentPrice = calculatePrice(product.price, selectedWeight)
+  const currentPrice = useMemo(() =>
+    calculatePrice(product.price, selectedWeight),
+    [product.price, selectedWeight]
+  )
   const isOutOfStock = product.stock === 0
   const hasTags = product.glutenFree || product.vegan || product.keto
 
-  const productImage = validateProductImage(
-    product.images?.[0],
-    product.category,
-    product.subcategory
+  const productImage = useMemo(() =>
+    validateProductImage(
+      product.images?.[0],
+      product.category,
+      product.subcategory
+    ),
+    [product.images, product.category, product.subcategory]
   )
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsAdding(true)
@@ -56,18 +66,18 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
     timeoutRef.current = setTimeout(() => {
       setIsAdding(false)
     }, 500)
-  }
+  }, [addItem, product, selectedWeight])
 
-  const handleWishlist = (e: React.MouseEvent) => {
+  const handleWishlist = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     toggleItem(product)
-  }
+  }, [toggleItem, product])
 
   return (
     <div className={`bg-white rounded-2xl overflow-hidden border border-neutral-100 hover:border-primary-200 transition-all duration-300 shadow-card hover:shadow-card-hover group ${className || ''}`}>
       <Link href={`/product/${product.slug}`} className="group block">
-        <div className="relative bg-gradient-to-br from-cream-50 to-cream-100 overflow-hidden h-52">
+        <div className="relative bg-gradient-to-br from-cream-50 to-cream-100 overflow-hidden aspect-square">
           <Image
             src={productImage}
             alt={product.name}
@@ -76,10 +86,12 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             loading={priority ? 'eager' : 'lazy'}
             priority={priority}
+            placeholder="empty"
+            unoptimized={productImage.includes('supabase') || productImage.includes('unsplash')}
           />
           <button
             onClick={handleWishlist}
-            className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white transition-colors z-10"
+            className="absolute top-2 right-2 w-11 h-11 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white transition-colors z-10"
             aria-label={inWishlist ? 'Quitar de favoritos' : 'Agregar a favoritos'}
           >
             <svg
@@ -133,7 +145,7 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
             )}
           </div>
 
-          <div className="flex gap-1.5 mb-3 sm:hidden">
+          <div className="flex gap-1.5 mb-3 sm:hidden" role="group" aria-label="Seleccionar peso">
             {[250, 500].map((weight) => (
               <button
                 key={weight}
@@ -147,12 +159,14 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
                     ? 'bg-primary-600 text-white shadow-sm'
                     : 'bg-cream-100 text-neutral-600 hover:bg-primary-50 hover:text-primary-600'
                 }`}
+                aria-pressed={selectedWeight === weight}
+                aria-label={`${weight} gramos`}
               >
                 {weight}g
               </button>
             ))}
           </div>
-          <div className="hidden sm:flex gap-1.5 mb-3">
+          <div className="hidden sm:flex gap-1.5 mb-3" role="group" aria-label="Seleccionar peso">
             {WEIGHTS.map((weight) => (
               <button
                 key={weight}
@@ -161,11 +175,13 @@ export function ProductCard({ product, className, priority }: ProductCardProps) 
                   e.stopPropagation()
                   setSelectedWeight(weight)
                 }}
-                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all min-h-[44px] ${
                   selectedWeight === weight
                     ? 'bg-primary-600 text-white shadow-sm'
                     : 'bg-cream-100 text-neutral-600 hover:bg-primary-50 hover:text-primary-600'
                 }`}
+                aria-pressed={selectedWeight === weight}
+                aria-label={`${weight} gramos`}
               >
                 {weight}g
               </button>

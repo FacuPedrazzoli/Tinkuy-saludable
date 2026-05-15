@@ -4,7 +4,9 @@ import { ProductGrid } from '@/components/ProductGrid'
 import { FAQSection } from '@/components/FAQSection'
 import { getFeaturedProducts } from '@/data/products'
 import { siteConfig } from '@/data/siteConfig'
+import { safeJsonStringify } from '@/lib/utils'
 import Link from 'next/link'
+import { useMemo } from 'react'
 
 const organizationSchema = {
   '@context': 'https://schema.org',
@@ -31,20 +33,51 @@ const organizationSchema = {
     : [],
 }
 
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy.com'
+
 export default function HomePage() {
-  const featuredProducts = getFeaturedProducts()
+  const featuredProducts = useMemo(() => getFeaturedProducts().slice(0, 8), [])
+
+  const productSchema = useMemo(() => featuredProducts.map((product) => ({
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.shortDescription,
+    image: [product.images[0]],
+    offers: {
+      '@type': 'Offer',
+      price: String(product.price),
+      priceCurrency: 'ARS',
+      availability: product.stock > 0
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+    },
+    aggregateRating: product.rating > 0
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: product.rating,
+          reviewCount: product.reviews,
+        }
+      : undefined,
+  })), [featuredProducts])
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonStringify(organizationSchema) }}
       />
+      {productSchema.map((schema, index) => (
+        <script
+          key={index}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonStringify(schema) }}
+        />
+      ))}
       <Hero />
       <CategorySection />
 
-      <section className="py-20 bg-cream-50">
-
+      <section className="py-20 bg-cream-50" aria-labelledby="featured-products-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-12">
             <div>
@@ -52,7 +85,7 @@ export default function HomePage() {
                 <span className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" />
                 Destacados
               </span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 font-display">
+              <h2 id="featured-products-heading" className="text-3xl sm:text-4xl font-bold text-neutral-900 font-display">
                 Productos Destacados
               </h2>
               <p className="text-neutral-600 mt-2">

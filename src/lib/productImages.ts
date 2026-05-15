@@ -1,6 +1,6 @@
 const categoryImages: Record<string, string> = {
-  'frutos-secos': 'https://images.unsplash.com/photo-1536591378896-a53d3b2c4a77?w=400&q=80',
-  'semillas': 'https://images.unsplash.com/photo-1609619385005-40e8a5c2e2c5?w=400&q=80',
+  'frutos-secos': 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?w=400&q=80',
+  'semillas': 'https://images.unsplash.com/photo-1471959411590-25e02f5c6564?w=400&q=80',
   'harinas': 'https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=400&q=80',
   'proteinas': 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400&q=80',
   'snacks': 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=400&q=80',
@@ -49,7 +49,7 @@ export function getProductImage(category: string, subcategory?: string): string 
 }
 
 export function getDefaultProductImage(): string {
-  return 'https://images.unsplash.com/photo-1536591378896-a53d3b2c4a77?w=400&q=80'
+  return 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?w=400&q=80'
 }
 
 export function validateProductImage(imageUrl: string | undefined, category: string, subcategory?: string): string {

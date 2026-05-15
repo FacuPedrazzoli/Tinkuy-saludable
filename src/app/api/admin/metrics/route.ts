@@ -54,6 +54,43 @@ export async function GET() {
       supabase.from('orders').select('payment_status'),
     ])
 
+    if (totalOrdersResult.error) {
+      console.error('Error fetching total orders:', totalOrdersResult.error)
+    }
+    if (pendingOrdersResult.error) {
+      console.error('Error fetching pending orders:', pendingOrdersResult.error)
+    }
+    if (totalCustomersResult.error) {
+      console.error('Error fetching total customers:', totalCustomersResult.error)
+    }
+    if (totalProductsResult.error) {
+      console.error('Error fetching total products:', totalProductsResult.error)
+    }
+    if (ordersTodayResult.error) {
+      console.error('Error fetching orders today:', ordersTodayResult.error)
+    }
+    if (ordersThisMonthResult.error) {
+      console.error('Error fetching orders this month:', ordersThisMonthResult.error)
+    }
+    if (revenueTodayResult.error) {
+      console.error('Error fetching revenue today:', revenueTodayResult.error)
+    }
+    if (revenueThisMonthResult.error) {
+      console.error('Error fetching revenue this month:', revenueThisMonthResult.error)
+    }
+    if (recentOrdersResult.error) {
+      console.error('Error fetching recent orders:', recentOrdersResult.error)
+    }
+    if (topProductsResult.error) {
+      console.error('Error fetching top products:', topProductsResult.error)
+    }
+    if (ordersByStatusResult.error) {
+      console.error('Error fetching orders by status:', ordersByStatusResult.error)
+    }
+    if (ordersByPaymentResult.error) {
+      console.error('Error fetching orders by payment:', ordersByPaymentResult.error)
+    }
+
     const totalOrders = totalOrdersResult.count || 0
     const pendingOrders = pendingOrdersResult.count || 0
     const totalCustomers = totalCustomersResult.count || 0

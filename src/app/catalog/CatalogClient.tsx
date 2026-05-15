@@ -1,18 +1,26 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useQuery } from '@apollo/client/react'
 import { ProductGrid } from '@/components/ProductGrid'
 import { ProductGridSkeleton } from '@/components/ProductGridSkeleton'
 import { Product } from '@/types'
+import { GET_PRODUCTS, GET_TAGS } from '@/lib/graphql/queries'
 
-interface CatalogResponse {
-  products: Product[]
-  pagination: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
+interface ProductsQueryResult {
+  products: {
+    items: Array<{
+      id: string
+      name: string
+      slug: string
+      description: string | null
+      basePrice: string
+      isFeatured: boolean
+      images: Array<{ url: string }>
+      tags: Array<{ tag: { name: string } }>
+    }>
+    count: number
   }
 }
 
@@ -28,6 +36,7 @@ function CatalogContent() {
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(initialPage)
+  const [queryError, setQueryError] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -41,6 +50,12 @@ function CatalogContent() {
     is_keto: false,
   })
 
+  const filtersRef = useRef(filters)
+
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search)
@@ -48,73 +63,78 @@ function CatalogContent() {
     return () => clearTimeout(timer)
   }, [search])
 
-  const fetchProducts = useCallback(async (page: number) => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams()
-      params.set('page', page.toString())
-      params.set('limit', '24')
+  const { data: productsData, loading: gqlLoading, error: gqlError, refetch: refetchProducts } = useQuery<ProductsQueryResult>(GET_PRODUCTS, {
+    variables: {
+      search: debouncedSearch || undefined,
+      tagSlug: selectedCategory || undefined,
+      isVisible: true,
+      take: 24,
+      skip: (currentPage - 1) * 24,
+    },
+    skip: false,
+    onError: (error) => {
+      console.error('Products query error:', error);
+      setQueryError('Error al cargar los productos. Por favor, intentá de nuevo.');
+    },
+  });
 
-      if (selectedCategory) params.set('category', selectedCategory)
-      if (debouncedSearch) params.set('search', debouncedSearch)
-
-      if (filters.is_organic) params.set('is_organic', 'true')
-      if (filters.is_vegan) params.set('is_vegan', 'true')
-      if (filters.is_gluten_free) params.set('is_gluten_free', 'true')
-      if (filters.is_keto) params.set('is_keto', 'true')
-
-      if (sortBy === 'name') {
-        params.set('sort', 'name')
-        params.set('order', 'asc')
-      } else if (sortBy === 'price-low') {
-        params.set('sort', 'price')
-        params.set('order', 'asc')
-      } else if (sortBy === 'price-high') {
-        params.set('sort', 'price')
-        params.set('order', 'desc')
-      } else if (sortBy === 'rating') {
-        params.set('sort', 'rating')
-        params.set('order', 'desc')
-      }
-
-      const res = await fetch(`/api/products/catalog?${params.toString()}`)
-      const data: CatalogResponse = await res.json()
-
-      setProducts(data.products)
-      setTotal(data.pagination.total)
-      setTotalPages(data.pagination.totalPages)
-      setCurrentPage(data.pagination.page)
-    } catch (err) {
-      console.error('Failed to fetch products:', err)
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (gqlError) {
+      setQueryError('Error al cargar los productos. Por favor, intentá de nuevo.');
+      setLoading(false);
+      return;
     }
-  }, [selectedCategory, debouncedSearch, filters, sortBy])
+    if (productsData?.products) {
+      const items: Product[] = productsData.products.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        slug: item.slug,
+        description: item.description || '',
+        shortDescription: item.description?.substring(0, 100) || '',
+        price: parseFloat(item.basePrice) || 0,
+        category: selectedCategory || '',
+        subcategory: undefined,
+        subcategories: undefined,
+        tags: item.tags?.map((t) => t.tag?.name).filter(Boolean) || [],
+        images: item.images?.map((img) => img?.url).filter(Boolean) || [],
+        ingredients: undefined,
+        benefits: undefined,
+        nutritionalInfo: undefined,
+        stock: 100,
+        rating: 4.5,
+        reviews: 10,
+        featured: item.isFeatured || false,
+        promo: undefined,
+        brand: undefined,
+        organic: filtersRef.current.is_organic,
+        glutenFree: filtersRef.current.is_gluten_free,
+        vegan: filtersRef.current.is_vegan,
+        keto: filtersRef.current.is_keto,
+        createdAt: new Date().toISOString(),
+      }))
+      setProducts(items)
+      setTotal(productsData.products.count)
+      setTotalPages(Math.ceil(productsData.products.count / 24))
+      setLoading(false)
+      setQueryError(null);
+    }
+  }, [productsData, selectedCategory, filtersRef, gqlError])
 
   useEffect(() => {
-    fetchProducts(1)
-  }, [fetchProducts])
+    setLoading(gqlLoading)
+  }, [gqlLoading])
 
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (selectedCategory) params.set('category', selectedCategory)
-    if (currentPage > 1) params.set('page', currentPage.toString())
-
-    const newUrl = params.toString() ? `/catalog?${params.toString()}` : '/catalog'
-    router.push(newUrl, { scroll: false })
-  }, [selectedCategory, currentPage, router])
-
-  const handleCategoryChange = (category: string) => {
+  const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category)
     setCurrentPage(1)
-  }
+  }, [])
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  }, [])
 
-  const FilterSidebar = () => (
+  const FilterSidebar = useMemo(() => () => (
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold text-neutral-900 mb-3">Categorías</h3>
@@ -179,7 +199,20 @@ function CatalogContent() {
         </div>
       </div>
     </div>
-  )
+  ), [selectedCategory, filters, handleCategoryChange])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (selectedCategory) params.set('category', selectedCategory)
+    if (currentPage > 1) params.set('page', currentPage.toString())
+
+    const newUrl = params.toString() ? `/catalog?${params.toString()}` : '/catalog'
+    router.push(newUrl, { scroll: false })
+  }, [selectedCategory, currentPage, router])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedCategory, debouncedSearch, filters])
 
   return (
     <div className="min-h-screen bg-neutral-50 pt-20">
@@ -208,6 +241,7 @@ function CatalogContent() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar productos..."
+                  aria-label="Buscar productos"
                   className="w-full pl-10 pr-4 py-2.5 border border-neutral-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
                 />
                 <svg
@@ -249,7 +283,25 @@ function CatalogContent() {
               </div>
             )}
 
-            {loading ? (
+            {queryError ? (
+              <div className="text-center py-20">
+                <svg className="w-24 h-24 text-red-200 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">
+                  Error al cargar
+                </h3>
+                <p className="text-neutral-600 mb-6">
+                  {queryError}
+                </p>
+                <button
+                  onClick={() => refetchProducts()}
+                  className="px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  Reintentar
+                </button>
+              </div>
+            ) : loading ? (
               <ProductGridSkeleton count={8} />
             ) : products.length === 0 ? (
               <div className="text-center py-20">

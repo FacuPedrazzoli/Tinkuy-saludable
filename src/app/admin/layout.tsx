@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { siteConfig } from '@/data/siteConfig'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
+import { ProtectedRoute } from '@/hooks/ProtectedRoute'
 
 const adminNav = [
   { href: '/admin', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -15,11 +17,69 @@ const adminNav = [
   { href: '/admin/clients', label: 'Clientes', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
 ]
 
+const SESSION_TIMEOUT_MS = 25 * 60 * 1000
+const SESSION_WARNING_MS = 5 * 60 * 1000
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { logout, refreshSession } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [showSessionWarning, setShowSessionWarning] = useState(false)
+  const lastActivityRef = useRef(Date.now())
+  const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const clearSessionTimers = useCallback(() => {
+    if (warningTimeoutRef.current) {
+      clearTimeout(warningTimeoutRef.current)
+      warningTimeoutRef.current = null
+    }
+    if (logoutTimeoutRef.current) {
+      clearTimeout(logoutTimeoutRef.current)
+      logoutTimeoutRef.current = null
+    }
+  }, [])
+
+  const resetSessionTimers = useCallback(() => {
+    clearSessionTimers()
+    lastActivityRef.current = Date.now()
+    setShowSessionWarning(false)
+
+    warningTimeoutRef.current = setTimeout(() => {
+      setShowSessionWarning(true)
+    }, SESSION_TIMEOUT_MS)
+
+    logoutTimeoutRef.current = setTimeout(() => {
+      setShowSessionWarning(false)
+      logout()
+      router.push('/login?reason=session_expired')
+    }, SESSION_TIMEOUT_MS + SESSION_WARNING_MS)
+  }, [clearSessionTimers, logout, router])
+
+  useEffect(() => {
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove']
+    const handleActivity = () => {
+      if (Date.now() - lastActivityRef.current > 60000) {
+        resetSessionTimers()
+      }
+    }
+
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, { passive: true })
+    })
+
+    resetSessionTimers()
+    refreshSession()
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity)
+      })
+      clearSessionTimers()
+    }
+  }, [resetSessionTimers, clearSessionTimers, refreshSession])
 
   useEffect(() => {
     const checkMobile = () => {
@@ -45,8 +105,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [sidebarOpen])
 
   const handleLogout = async () => {
-    await fetch('/api/admin-auth', { method: 'DELETE' })
+    clearSessionTimers()
+    await logout()
     router.push('/login')
+  }
+
+  const handleExtendSession = () => {
+    resetSessionTimers()
+    setShowSessionWarning(false)
   }
 
   const SidebarContent = () => (
@@ -107,7 +173,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="fixed top-4 left-4 z-50 p-2 bg-neutral-900 text-white rounded-lg lg:hidden"
+            className="fixed top-4 left-4 z-50 p-3 bg-neutral-900 text-white rounded-lg lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Abrir menú"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -146,8 +212,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         'flex-1 p-6 pt-20 overflow-y-auto min-h-screen',
         !isMobile && 'md:ml-64'
       )}>
-        {children}
+        <ProtectedRoute allowedRoles={['owner', 'admin', 'editor']}>
+          {children}
+        </ProtectedRoute>
       </main>
+
+      {showSessionWarning && (
+        <div className="fixed bottom-4 right-4 bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-xl z-50 animate-slide-up">
+          <p className="text-amber-800 text-sm mb-3">
+            Tu sesión expirará en 5 minutos. ¿Deseas continuar?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExtendSession}
+              className="px-3 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+            >
+              Continuar
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 bg-neutral-100 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-200 transition-colors"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

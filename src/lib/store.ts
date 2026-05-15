@@ -9,15 +9,39 @@ export function calculatePrice(basePrice: number, weight: Weight): number {
   return Math.round((basePrice * weight) / 100)
 }
 
+interface HydrationState {
+  isHydrated: boolean
+  isCartHydrated: boolean
+  isWishlistHydrated: boolean
+  isRecentlyViewedHydrated: boolean
+  setCartHydrated: (value: boolean) => void
+  setWishlistHydrated: (value: boolean) => void
+  setRecentlyViewedHydrated: (value: boolean) => void
+  setAllHydrated: () => void
+}
+
+export const useHydrationStore = create<HydrationState>((set) => ({
+  isHydrated: false,
+  isCartHydrated: false,
+  isWishlistHydrated: false,
+  isRecentlyViewedHydrated: false,
+  setCartHydrated: (value: boolean) => set((state) => ({ isCartHydrated: value, isHydrated: state.isWishlistHydrated && state.isRecentlyViewedHydrated && value })),
+  setWishlistHydrated: (value: boolean) => set((state) => ({ isWishlistHydrated: value, isHydrated: state.isCartHydrated && state.isRecentlyViewedHydrated && value })),
+  setRecentlyViewedHydrated: (value: boolean) => set((state) => ({ isRecentlyViewedHydrated: value, isHydrated: state.isCartHydrated && state.isWishlistHydrated && value })),
+  setAllHydrated: () => set({ isHydrated: true, isCartHydrated: true, isWishlistHydrated: true, isRecentlyViewedHydrated: true }),
+}))
+
 interface CartStore {
   items: CartItem[]
   isOpen: boolean
+  isLoading: boolean
   addItem: (product: Product, quantity?: number, weight?: Weight) => void
   removeItem: (productId: string, weight: number) => void
   updateQuantity: (productId: string, quantity: number, weight: number) => void
   clearCart: () => void
   toggleCart: () => void
   setCartOpen: (isOpen: boolean) => void
+  setLoading: (isLoading: boolean) => void
   getTotal: () => number
   getItemCount: () => number
 }
@@ -27,6 +51,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+      isLoading: false,
 
       addItem: (product: Product, quantity = 1, weight: Weight = 250) => {
         set((state) => {
@@ -74,6 +99,8 @@ export const useCartStore = create<CartStore>()(
 
       setCartOpen: (isOpen: boolean) => set({ isOpen }),
 
+      setLoading: (isLoading: boolean) => set({ isLoading }),
+
       getTotal: () => {
         return get().items.reduce((sum, item) => {
           return sum + calculatePrice(item.product.price, item.weight as Weight) * item.quantity
@@ -85,8 +112,13 @@ export const useCartStore = create<CartStore>()(
       },
     }),
     {
-      name: 'tinkuy-cart',
+      name: 'tinkuy-cart-storage',
       partialize: (state) => ({ items: state.items }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          useHydrationStore.getState().setCartHydrated(true)
+        }
+      },
     }
   )
 )
@@ -134,7 +166,12 @@ export const useWishlistStore = create<WishlistStore>()(
       },
     }),
     {
-      name: 'tinkuy-wishlist',
+      name: 'tinkuy-wishlist-storage',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          useHydrationStore.getState().setWishlistHydrated(true)
+        }
+      },
     }
   )
 )
@@ -160,7 +197,12 @@ export const useRecentlyViewedStore = create<RecentlyViewedStore>()(
       clearRecent: () => set({ products: [] }),
     }),
     {
-      name: 'tinkuy-recently-viewed',
+      name: 'tinkuy-recently-viewed-storage',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          useHydrationStore.getState().setRecentlyViewedHydrated(true)
+        }
+      },
     }
   )
 )

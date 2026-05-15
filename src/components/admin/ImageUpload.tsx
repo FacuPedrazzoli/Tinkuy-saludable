@@ -19,7 +19,14 @@ export function useImageUpload({ onUploadComplete, onError }: UseImageUploadProp
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
 
+  const MAX_FILE_SIZE_MB = 10
+
   const uploadImage = useCallback(async (file: File): Promise<string | null> => {
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      onError?.(`El archivo es demasiado grande. Máximo ${MAX_FILE_SIZE_MB}MB`)
+      return null
+    }
+
     setUploading(true)
     try {
       const compressedFile = await imageCompression(file, compressionOptions)
@@ -40,8 +47,9 @@ export function useImageUpload({ onUploadComplete, onError }: UseImageUploadProp
       const data = await res.json()
       onUploadComplete?.(data.url)
       return data.url
-    } catch (err: any) {
-      onError?.(err.message)
+    } catch (err) {
+      const error = err as Error
+      onError?.(error.message)
       return null
     } finally {
       setUploading(false)
@@ -66,12 +74,15 @@ export function useImageUpload({ onUploadComplete, onError }: UseImageUploadProp
     setDragging(false)
 
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))
-    if (files.length === 0) return
+    if (files.length === 0) {
+      onError?.('Por favor, soltá solo archivos de imagen.')
+      return
+    }
 
     for (const file of files) {
       await uploadImage(file)
     }
-  }, [uploadImage])
+  }, [uploadImage, onError])
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -100,9 +111,14 @@ interface ImageUploadZoneProps {
 }
 
 export function ImageUploadZone({ onUploadComplete, onError, className = '' }: ImageUploadZoneProps) {
+  const [error, setError] = useState<string | null>(null)
   const { uploading, dragging, handleDragOver, handleDragLeave, handleDrop, handleFileSelect } = useImageUpload({
     onUploadComplete,
-    onError,
+    onError: (errMsg) => {
+      setError(errMsg)
+      onError?.(errMsg)
+      setTimeout(() => setError(null), 5000)
+    },
   })
 
   return (
@@ -145,6 +161,11 @@ export function ImageUploadZone({ onUploadComplete, onError, className = '' }: I
             o hacé click para seleccionar
           </p>
         </div>
+        {error && (
+          <p className="text-sm text-red-600 mt-2" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   )

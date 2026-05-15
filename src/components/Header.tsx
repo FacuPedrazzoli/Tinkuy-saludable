@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useEffect, useRef } from 'react'
-import { useCartStore, useWishlistStore } from '@/lib/store'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useCartStore, useWishlistStore, useHydrationStore } from '@/lib/store'
 import { categories } from '@/data/categories'
 import { siteConfig } from '@/data/siteConfig'
 import { cn } from '@/lib/utils'
@@ -14,10 +14,11 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCategoryOpen, setIsCategoryOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const { toggleCart, getItemCount } = useCartStore()
-  const { items: wishlistItems } = useWishlistStore()
-  const itemCount = getItemCount()
-  const wishlistCount = wishlistItems.length
+  const isHydrated = useHydrationStore((state) => state.isHydrated)
+  const toggleCart = useCartStore((state) => state.toggleCart)
+  const items = useCartStore((state) => state.items)
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
+  const wishlistCount = useWishlistStore((state) => state.items.length)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const categoryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -81,6 +82,12 @@ export function Header() {
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMobileMenuOpen])
+
   return (
     <>
       <header
@@ -99,7 +106,7 @@ export function Header() {
                 alt={siteConfig.name}
                 width={160}
                 height={50}
-                className="h-10 w-auto lg:h-12"
+                className="h-8 w-auto sm:h-10 lg:h-12"
                 priority
               />
             </Link>
@@ -131,6 +138,13 @@ export function Header() {
                   aria-haspopup="true"
                   aria-expanded={isCategoryOpen}
                   aria-controls="category-menu"
+                  onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setIsCategoryOpen(!isCategoryOpen)
+                    }
+                  }}
                 >
                   <span>Categorías</span>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -229,7 +243,7 @@ export function Header() {
               <button
                 ref={menuButtonRef}
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 text-neutral-700"
+                className="lg:hidden p-3 text-neutral-700 min-w-[44px] min-h-[44px] flex items-center justify-center"
                 aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
                 aria-expanded={isMobileMenuOpen}
                 aria-controls="mobile-menu"
@@ -252,17 +266,34 @@ export function Header() {
             id="mobile-menu"
             className="lg:hidden bg-white border-t border-neutral-100 animate-slide-down"
           >
-            <nav className="max-w-7xl mx-auto px-4 py-4 space-y-2" aria-label="Menú móvil">
-              <Link href="/" className="block py-2 text-neutral-700 font-medium">
-                Inicio
-              </Link>
-              <Link href="/catalog" className="block py-2 text-neutral-700 font-medium">
-                Tienda
-              </Link>
-              <Link href="/about" className="block py-2 text-neutral-700 font-medium">
-                Nosotros
-              </Link>
-            </nav>
+            <div className="max-w-7xl mx-auto px-4 py-4">
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-medium text-neutral-900">Menú</span>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-3 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  aria-label="Cerrar menú"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <nav className="space-y-2" aria-label="Menú móvil">
+                <Link href="/" className="block py-3 text-neutral-700 font-medium hover:text-primary-600 hover:bg-neutral-50 px-4 rounded-lg transition-colors">
+                  Inicio
+                </Link>
+                <Link href="/catalog" className="block py-3 text-neutral-700 font-medium hover:text-primary-600 hover:bg-neutral-50 px-4 rounded-lg transition-colors">
+                  Tienda
+                </Link>
+                <Link href="/about" className="block py-3 text-neutral-700 font-medium hover:text-primary-600 hover:bg-neutral-50 px-4 rounded-lg transition-colors">
+                  Nosotros
+                </Link>
+                <Link href="/contact" className="block py-3 text-neutral-700 font-medium hover:text-primary-600 hover:bg-neutral-50 px-4 rounded-lg transition-colors">
+                  Contacto
+                </Link>
+              </nav>
+            </div>
           </div>
         )}
       </header>

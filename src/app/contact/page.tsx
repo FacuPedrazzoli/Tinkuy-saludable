@@ -23,6 +23,7 @@ export default function ContactPage() {
   })
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors] = useState<Partial<ContactForm>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -31,26 +32,41 @@ export default function ContactPage() {
 
   const validateForm = (): boolean => {
     const newErrors: Partial<ContactForm> = {}
+    let firstErrorField: string | null = null
 
     if (!form.name.trim()) {
       newErrors.name = 'El nombre es requerido'
+      if (!firstErrorField) firstErrorField = 'name'
     } else if (form.name.trim().length < 2) {
       newErrors.name = 'El nombre debe tener al menos 2 caracteres'
+      if (!firstErrorField) firstErrorField = 'name'
     }
 
     if (!form.email.trim()) {
       newErrors.email = 'El email es requerido'
+      if (!firstErrorField) firstErrorField = 'email'
     } else if (!validateEmail(form.email)) {
       newErrors.email = 'Ingresá un email válido'
+      if (!firstErrorField) firstErrorField = 'email'
     }
 
     if (!form.message.trim()) {
       newErrors.message = 'El mensaje es requerido'
+      if (!firstErrorField) firstErrorField = 'message'
     } else if (form.message.trim().length < 10) {
       newErrors.message = 'El mensaje debe tener al menos 10 caracteres'
+      if (!firstErrorField) firstErrorField = 'message'
     }
 
     setErrors(newErrors)
+
+    if (firstErrorField) {
+      const element = document.getElementById(firstErrorField)
+      if (element) {
+        element.focus()
+      }
+    }
+
     return Object.keys(newErrors).length === 0
   }
 
@@ -58,12 +74,21 @@ export default function ContactPage() {
     e.preventDefault()
 
     if (!validateForm()) return
+    if (isSubmitting) return
+    setIsSubmitting(true)
+
+    const sanitizedForm = {
+      name: form.name.trim().replace(/<[^>]*>/g, ''),
+      email: form.email.trim().toLowerCase().replace(/[^a-z0-9@._-]/g, ''),
+      phone: form.phone.trim().replace(/[^0-9+\-\s]/g, ''),
+      message: form.message.trim().replace(/<[^>]*>/g, ''),
+    }
 
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(sanitizedForm),
       })
 
       if (!res.ok) {
@@ -77,6 +102,8 @@ export default function ContactPage() {
       }, 3000)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Error al enviar el mensaje')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -180,7 +207,7 @@ export default function ContactPage() {
                 }`}
                 placeholder="Tu nombre"
               />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+              {errors.name && <p className="text-red-500 text-sm mt-1" role="alert">{errors.name}</p>}
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-2">
@@ -197,7 +224,7 @@ export default function ContactPage() {
                 }`}
                 placeholder="tu@email.com"
               />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+              {errors.email && <p className="text-red-500 text-sm mt-1" role="alert">{errors.email}</p>}
             </div>
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-2">
@@ -229,13 +256,20 @@ export default function ContactPage() {
               }`}
               placeholder="¿En qué podemos ayudarte?"
             />
-            {errors.message && <p className="text-red-500 text-sm mt-1">{errors.message}</p>}
+            {errors.message && <p className="text-red-500 text-sm mt-1" role="alert">{errors.message}</p>}
           </div>
           <button
             type="submit"
-            className="w-full py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors"
+            disabled={isSubmitting}
+            className="w-full py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors disabled:bg-primary-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Enviar Mensaje
+            {isSubmitting && (
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            )}
+            {isSubmitting ? 'Enviando...' : 'Enviar Mensaje'}
           </button>
         </form>
       </div>

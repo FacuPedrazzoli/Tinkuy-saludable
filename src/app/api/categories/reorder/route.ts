@@ -46,7 +46,7 @@ export async function PUT(request: NextRequest) {
 
       if (error) {
         console.error('Error reordering category:', error)
-        return apiError('Error reordering', 500)
+        return apiError(`Error reordering category ${cat.id}: ${error.message}`, 500)
       }
     }
 

@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { useQuery } from '@apollo/client/react'
+import { GET_ORDERS, GET_ADMIN_METRICS, GET_RECENT_ORDERS, GET_TOP_PRODUCTS } from '@/lib/graphql/queries'
 import { formatPrice } from '@/lib/utils'
 
 interface Metrics {
@@ -16,19 +18,54 @@ interface Metrics {
 
 interface Order {
   id: string
-  order_number: string
-  customer_name: string
-  customer_email: string
+  orderNumber: string
+  customerName: string
+  customerEmail: string
   total: number
   status: string
-  payment_status: string
-  created_at: string
+  paymentStatus: string
+  createdAt: string
 }
 
 interface TopProduct {
-  product_name: string
+  productName: string
   quantity: number
-  total_price: number
+  totalPrice: number
+}
+
+interface AdminMetricsData {
+  adminMetrics: {
+    totalOrders: number
+    pendingOrders: number
+    totalCustomers: number
+    totalProducts: number
+    revenueToday: number
+    revenueThisMonth: number
+    avgOrderValue: number
+    ordersByStatus: { status: string; count: number }[]
+    ordersByPayment: { paymentStatus: string; count: number }[]
+  }
+}
+
+interface RecentOrdersData {
+  recentOrders: Order[]
+}
+
+interface TopProductsData {
+  topProducts: TopProduct[]
+}
+
+interface OrdersData {
+  orders: {
+    items: {
+      id: string
+      status: string
+      paymentStatus: string
+      totalAmount: number
+      createdAt: string
+    }[]
+    count: number
+  }
 }
 
 const statusConfig: Record<string, { es: string; bgColor: string; dot: string; textColor: string }> = {
@@ -61,36 +98,96 @@ function SkeletonCard() {
   )
 }
 
-export default function AdminDashboard() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null)
-  const [recentOrders, setRecentOrders] = useState<Order[]>([])
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
-  const [ordersByStatus, setOrdersByStatus] = useState<Record<string, number>>({})
-  const [ordersByPayment, setOrdersByPayment] = useState<Record<string, number>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchMetrics()
-  }, [])
-
-  const fetchMetrics = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/admin/metrics')
-      if (!res.ok) throw new Error('Error fetching metrics')
-      const data = await res.json()
-      setMetrics(data.metrics)
-      setRecentOrders(data.recentOrders || [])
-      setTopProducts(data.topProducts || [])
-      setOrdersByStatus(data.ordersByStatus || {})
-      setOrdersByPayment(data.ordersByPayment || {})
-    } catch {
-      setError('Error cargando métricas')
-    } finally {
-      setLoading(false)
+function computeMetricsFromOrders(ordersData: OrdersData | undefined): Metrics {
+  if (!ordersData?.orders?.items) {
+    return {
+      totalOrders: 0,
+      pendingOrders: 0,
+      totalCustomers: 0,
+      totalProducts: 0,
+      revenueToday: 0,
+      revenueThisMonth: 0,
+      avgOrderValue: 0,
     }
   }
+
+  const items = ordersData.orders.items
+  const totalOrders = items.length
+  const pendingOrders = items.filter(o => o.status === 'pending').length
+
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString()
+
+  const ordersThisMonth = items.filter(o => o.createdAt >= startOfMonth)
+  const ordersToday = items.filter(o => o.createdAt >= startOfToday)
+
+  const revenueThisMonth = ordersThisMonth.reduce((sum, o) => sum + o.totalAmount, 0)
+  const revenueToday = ordersToday.reduce((sum, o) => sum + o.totalAmount, 0)
+  const avgOrderValue = totalOrders > 0 ? revenueThisMonth / totalOrders : 0
+
+  return {
+    totalOrders,
+    pendingOrders,
+    totalCustomers: 0,
+    totalProducts: 0,
+    revenueToday,
+    revenueThisMonth,
+    avgOrderValue,
+  }
+}
+
+export default function AdminDashboard() {
+  const [ordersByStatus, setOrdersByStatus] = useState<Record<string, number>>({})
+  const [ordersByPayment, setOrdersByPayment] = useState<Record<string, number>>({})
+
+  const { data: metricsData, loading: metricsLoading, error: metricsError, refetch: refetchMetrics } = useQuery<AdminMetricsData>(GET_ADMIN_METRICS, {
+    pollInterval: 120000,
+  })
+  const { data: recentOrdersData, loading: recentOrdersLoading, error: recentOrdersError } = useQuery<RecentOrdersData>(GET_RECENT_ORDERS, {
+    variables: { limit: 10 },
+    pollInterval: 60000,
+  })
+  const { data: topProductsData, loading: topProductsLoading, error: topProductsError } = useQuery<TopProductsData>(GET_TOP_PRODUCTS, {
+    variables: { limit: 5 },
+    pollInterval: 120000,
+  })
+  const { data: ordersData, loading: ordersLoading, error: ordersError } = useQuery<OrdersData>(GET_ORDERS, {
+    variables: { take: 100 },
+  })
+
+  const loading = metricsLoading || recentOrdersLoading || topProductsLoading || ordersLoading
+  const error = metricsError
+
+  const computedMetrics = useMemo(() => computeMetricsFromOrders(ordersData as OrdersData | undefined), [ordersData])
+
+  const memoizedStatusConfig = useMemo(() => statusConfig, [])
+  const memoizedPaymentConfig = useMemo(() => paymentConfig, [])
+
+  const metrics: Metrics | null = metricsData?.adminMetrics
+    ? {
+        totalOrders: metricsData.adminMetrics.totalOrders,
+        pendingOrders: metricsData.adminMetrics.pendingOrders,
+        totalCustomers: metricsData.adminMetrics.totalCustomers,
+        totalProducts: metricsData.adminMetrics.totalProducts,
+        revenueToday: metricsData.adminMetrics.revenueToday,
+        revenueThisMonth: metricsData.adminMetrics.revenueThisMonth,
+        avgOrderValue: metricsData.adminMetrics.avgOrderValue,
+      }
+    : computedMetrics
+
+  const recentOrders: Order[] = recentOrdersData?.recentOrders || (ordersData as OrdersData | undefined)?.orders?.items?.slice(0, 5).map(o => ({
+    id: o.id || '',
+    orderNumber: `#${(o.id || '').slice(0, 8).toUpperCase()}`,
+    customerName: 'Cliente',
+    customerEmail: '-',
+    total: o.totalAmount,
+    status: o.status,
+    paymentStatus: o.paymentStatus,
+    createdAt: o.createdAt,
+  })) || []
+
+  const topProducts: TopProduct[] = (topProductsData as TopProductsData | undefined)?.topProducts || []
 
   if (loading) {
     return (
@@ -113,15 +210,23 @@ export default function AdminDashboard() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
         <h3 className="text-lg font-semibold text-red-800 mb-2">Error al cargar</h3>
-        <p className="text-red-600 mb-4">{error}</p>
-        <button onClick={fetchMetrics} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+        <p className="text-red-600 mb-4">{error?.message || 'Error cargando métricas'}</p>
+        <button onClick={() => refetchMetrics()} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
           Reintentar
         </button>
       </div>
     )
   }
 
-  const totalOrdersCount = Object.values(ordersByStatus).reduce((a, b) => a + b, 0)
+  const computedOrdersByStatus: Record<string, number> = metricsData?.adminMetrics?.ordersByStatus
+    ? Object.fromEntries(metricsData.adminMetrics.ordersByStatus.map(s => [s.status, s.count]))
+    : ordersByStatus
+
+  const computedOrdersByPayment: Record<string, number> = metricsData?.adminMetrics?.ordersByPayment
+    ? Object.fromEntries(metricsData.adminMetrics.ordersByPayment.map(p => [p.paymentStatus, p.count]))
+    : ordersByPayment
+
+  const totalOrdersCount = Object.values(computedOrdersByStatus).reduce((a, b) => a + b, 0)
 
   return (
     <div className="space-y-8">
@@ -131,7 +236,7 @@ export default function AdminDashboard() {
           <p className="text-neutral-500 mt-1">Resumen de tu tienda</p>
         </div>
         <button
-          onClick={fetchMetrics}
+          onClick={() => refetchMetrics()}
           className="flex items-center gap-2 px-4 py-2 text-sm text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -203,7 +308,7 @@ export default function AdminDashboard() {
           </div>
           <div className="space-y-4">
             {Object.entries(statusConfig).map(([status, config]) => {
-              const count = ordersByStatus[status] || 0
+              const count = computedOrdersByStatus[status] || 0
               const percentage = totalOrdersCount > 0 ? (count / totalOrdersCount) * 100 : 0
               return (
                 <div key={status} className="flex items-center gap-4">
@@ -233,7 +338,7 @@ export default function AdminDashboard() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(paymentConfig).map(([status, config]) => {
-              const count = ordersByPayment[status] || 0
+              const count = computedOrdersByPayment[status] || 0
               const percentage = totalOrdersCount > 0 ? Math.round((count / totalOrdersCount) * 100) : 0
               return (
                 <div key={status} className={`${config.bgColor} rounded-xl p-4`}>
@@ -271,13 +376,13 @@ export default function AdminDashboard() {
                       <span className={`w-2 h-2 rounded-full ${statusConfig[order.status]?.dot}`} />
                     </div>
                     <div>
-                      <p className="font-medium text-neutral-900 text-sm">{order.order_number}</p>
-                      <p className="text-xs text-neutral-400">{order.customer_name}</p>
+                      <p className="font-medium text-neutral-900 text-sm">{order.orderNumber}</p>
+                      <p className="text-xs text-neutral-400">{order.customerName}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-neutral-900 text-sm">{formatPrice(order.total)}</p>
-                    <p className="text-xs text-neutral-400">{new Date(order.created_at).toLocaleDateString('es-AR')}</p>
+                    <p className="text-xs text-neutral-400">{new Date(order.createdAt).toLocaleDateString('es-AR')}</p>
                   </div>
                 </div>
               ))}
@@ -307,10 +412,10 @@ export default function AdminDashboard() {
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-neutral-900 text-sm truncate">{product.product_name}</p>
+                    <p className="font-medium text-neutral-900 text-sm truncate">{product.productName}</p>
                     <p className="text-xs text-neutral-400">{product.quantity} vendidos</p>
                   </div>
-                  <p className="font-semibold text-primary-600 text-sm">{formatPrice(product.total_price)}</p>
+                  <p className="font-semibold text-primary-600 text-sm">{formatPrice(product.totalPrice)}</p>
                 </div>
               ))}
             </div>

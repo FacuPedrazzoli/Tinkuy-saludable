@@ -3,6 +3,21 @@ import { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Términos y Condiciones | Tinkuy',
   description: 'Términos y condiciones de compra de Tinkuy. Información sobre nuestras condiciones de venta conforme a la Ley 24.240 de Defensa del Consumidor.',
+  alternates: {
+    canonical: '/terminos-y-condiciones',
+  },
+  openGraph: {
+    title: 'Términos y Condiciones | Tinkuy',
+    description: 'Términos y condiciones de compra de Tinkuy. Información sobre nuestras condiciones de venta conforme a la Ley 24.240 de Defensa del Consumidor.',
+    type: 'website',
+    locale: 'es_AR',
+    url: '/terminos-y-condiciones',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Términos y Condiciones | Tinkuy',
+    description: 'Términos y condiciones de compra de Tinkuy.',
+  },
 }
 
 export default function TermsPage() {

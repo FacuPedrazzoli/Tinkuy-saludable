@@ -1,20 +1,24 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Product } from '@/types'
 import { useRecentlyViewedStore } from '@/lib/store'
 import { RecentlyViewed } from '@/components/product/RecentlyViewed'
 
 interface ProductPageContentProps {
   product: Product
-  relatedProducts: Product[]
+  relatedProducts?: Product[]
 }
 
-export function ProductPageContent({ product, relatedProducts }: ProductPageContentProps) {
+export function ProductPageContent({ product, relatedProducts = [] }: ProductPageContentProps) {
   const addProduct = useRecentlyViewedStore((state) => state.addProduct)
+  const productRef = useRef(product)
 
   useEffect(() => {
-    addProduct(product)
+    if (productRef.current.id !== product.id) {
+      addProduct(product)
+      productRef.current = product
+    }
   }, [product, addProduct])
 
   return (

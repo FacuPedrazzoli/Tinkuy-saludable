@@ -1,20 +1,23 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useQuery, useMutation } from '@apollo/client/react'
 import { cn } from '@/lib/utils'
 import { slugify } from '@/lib/utils'
 import { ToastContainer, useToast } from '@/components/Toast'
+import { GET_CATEGORIES, CREATE_CATEGORY, UPDATE_CATEGORY, DELETE_CATEGORY, REORDER_CATEGORIES } from '@/lib/graphql/queries'
+import { GraphQLCategoriesResult, GraphQLCategory } from '@/lib/graphql/types'
 
 interface Category {
   id: string
   name: string
   slug: string
   description: string | null
-  image_url: string | null
-  parent_id: string | null
-  product_count: number
-  sort_order: number
-  is_active: boolean
+  imageUrl: string | null
+  parentId: string | null
+  productCount: number
+  sortOrder: number
+  isActive: boolean
 }
 
 const emptyCategory = {
@@ -22,9 +25,9 @@ const emptyCategory = {
   name: '',
   slug: '',
   description: '',
-  image_url: '',
-  parent_id: null as string | null,
-  is_active: true,
+  imageUrl: '',
+  parentId: null as string | null,
+  isActive: true,
 }
 
 export default function AdminCategoriesPage() {
@@ -37,49 +40,101 @@ export default function AdminCategoriesPage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const toast = useToast()
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch('/api/categories')
-      if (!res.ok) throw new Error('Error fetching categories')
-      const data = await res.json()
-      setCategories((data.categories || []).sort((a: Category, b: Category) => a.sort_order - b.sort_order))
-    } catch (err) {
-      setError('Error cargando categorías')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCategoriesResult>(GET_CATEGORIES, {
+    onError: (error) => {
+      console.error('Categories query error:', error);
+      setError('Error cargando categorías');
+    },
+  });
 
   useEffect(() => {
-    fetchCategories()
-  }, [fetchCategories])
+    if (gqlError) {
+      setError('Error cargando categorías')
+      setLoading(false)
+    } else if (data?.categories) {
+      const sorted = (data.categories as GraphQLCategory[])
+        .filter((c): c is GraphQLCategory => c !== null && c !== undefined)
+        .map((c) => ({
+          id: c.id || '',
+          name: c.name || '',
+          slug: c.slug || '',
+          description: c.description ?? null,
+          imageUrl: c.imageUrl ?? null,
+          parentId: c.parentId ?? null,
+          productCount: c.productCount ?? 0,
+          sortOrder: c.sortOrder ?? 0,
+          isActive: c.isActive ?? true,
+        }))
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+      setCategories(sorted as Category[])
+      setLoading(false)
+    }
+  }, [data, gqlError])
+
+  const [createCategory, { loading: createLoading }] = useMutation(CREATE_CATEGORY, {
+    onError: (error) => {
+      toast.error(error.message || 'Error al crear categoría');
+    },
+  })
+  const [updateCategory, { loading: updateLoading }] = useMutation(UPDATE_CATEGORY, {
+    onError: (error) => {
+      toast.error(error.message || 'Error al actualizar categoría');
+    },
+  })
+  const [deleteCategory, { loading: deleteLoading }] = useMutation(DELETE_CATEGORY, {
+    onError: (error) => {
+      toast.error(error.message || 'Error al eliminar categoría');
+    },
+  })
+  const [reorderCategories, { loading: reorderLoading }] = useMutation(REORDER_CATEGORIES, {
+    onError: (error) => {
+      toast.error(error.message || 'Error al reordenar categorías');
+      refetch();
+    },
+  })
 
   const handleSave = async () => {
     if (!editingCategory) return
+
+    if (!editingCategory.name.trim()) {
+      toast.error('El nombre de la categoría es requerido')
+      const nameInput = document.querySelector<HTMLInputElement>('input[name="category-name"]')
+      nameInput?.focus()
+      return
+    }
+
+    if (editingCategory.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(editingCategory.slug)) {
+      toast.error('El slug solo puede contener letras minúsculas, números y guiones (sin guiones consecutivos)')
+      const slugInput = document.querySelector<HTMLInputElement>('input[name="category-slug"]')
+      slugInput?.focus()
+      return
+    }
+
+    if (saving) return
     setSaving(true)
 
     try {
-      const url = editingCategory.id
-        ? `/api/categories/${editingCategory.id}`
-        : '/api/categories'
-      const method = editingCategory.id ? 'PUT' : 'POST'
+      const input = {
+        name: editingCategory.name.trim().replace(/<[^>]*>/g, ''),
+        slug: editingCategory.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
+        description: editingCategory.description?.trim().replace(/<[^>]*>/g, '') || null,
+        imageUrl: editingCategory.imageUrl || null,
+        parentId: editingCategory.parentId,
+        isActive: editingCategory.isActive,
+      }
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingCategory),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Error saving category')
+      if (editingCategory.id) {
+        await updateCategory({ variables: { id: editingCategory.id, input } })
+      } else {
+        await createCategory({ variables: { input } })
       }
 
       setShowModal(false)
       setEditingCategory(null)
-      fetchCategories()
-    } catch (err: any) {
-      toast.error(err.message)
+      refetch()
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     } finally {
       setSaving(false)
     }
@@ -89,11 +144,11 @@ export default function AdminCategoriesPage() {
     if (!confirm('¿Estás seguro de eliminar esta categoría?')) return
 
     try {
-      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Error deleting category')
-      fetchCategories()
-    } catch (err: any) {
-      toast.error(err.message)
+      await deleteCategory({ variables: { id } })
+      refetch()
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     }
   }
 
@@ -103,9 +158,9 @@ export default function AdminCategoriesPage() {
       name: category.name,
       slug: category.slug,
       description: category.description || '',
-      image_url: category.image_url || '',
-      parent_id: category.parent_id,
-      is_active: category.is_active,
+      imageUrl: category.imageUrl || '',
+      parentId: category.parentId,
+      isActive: category.isActive,
     })
     setShowModal(true)
   }
@@ -146,27 +201,30 @@ export default function AdminCategoriesPage() {
       if (!res.ok) throw new Error('Error uploading image')
 
       const data = await res.json()
-      setEditingCategory({ ...editingCategory, image_url: data.url })
-    } catch (err: any) {
-      toast.error(err.message)
+      setEditingCategory({ ...editingCategory, imageUrl: data.url })
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     } finally {
       setUploadingImage(false)
     }
   }
 
-  const handleReorder = async (categories: Category[]) => {
-    setCategories(categories)
+  const handleReorder = async (cats: Category[]) => {
+    setCategories(cats)
 
     try {
-      await fetch('/api/categories/reorder', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          categories: categories.map((c, i) => ({ id: c.id, sort_order: i }))
-        }),
+      await reorderCategories({
+        variables: {
+          input: {
+            categories: cats.map((c, i) => ({ id: c.id, sortOrder: i }))
+          }
+        },
       })
     } catch (err) {
-      console.error('Error reordering:', err)
+      const error = err as Error
+      toast.error(error.message || 'Error al reordenar categorías');
+      refetch()
     }
   }
 
@@ -209,7 +267,7 @@ export default function AdminCategoriesPage() {
       ) : error ? (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
           <p className="text-red-600">{error}</p>
-          <button onClick={fetchCategories} className="mt-2 text-primary-600 hover:underline">
+          <button onClick={() => refetch()} className="mt-2 text-primary-600 hover:underline">
             Reintentar
           </button>
         </div>
@@ -266,8 +324,8 @@ export default function AdminCategoriesPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      {category.image_url ? (
-                        <img src={category.image_url} alt={category.name} className="w-10 h-10 rounded-lg object-cover" />
+                      {category.imageUrl ? (
+                        <img src={category.imageUrl} alt={category.name} className="w-10 h-10 rounded-lg object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center">
                           <svg className="w-5 h-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -281,11 +339,11 @@ export default function AdminCategoriesPage() {
                   <td className="px-6 py-4 text-sm text-neutral-500">{category.slug}</td>
                   <td className="px-6 py-4">
                     <span className="px-3 py-1 bg-neutral-100 text-neutral-700 rounded-full text-sm font-medium">
-                      {category.product_count}
+                      {category.productCount}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {category.is_active ? (
+                    {category.isActive ? (
                       <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-sm rounded-full font-medium">Activa</span>
                     ) : (
                       <span className="px-3 py-1 bg-neutral-100 text-neutral-600 text-sm rounded-full font-medium">Inactiva</span>
@@ -335,18 +393,22 @@ export default function AdminCategoriesPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Nombre</label>
+                <label htmlFor="category-name" className="block text-sm font-medium text-neutral-700 mb-1">Nombre <span className="text-red-500">*</span></label>
                 <input
                   type="text"
+                  id="category-name"
+                  name="category-name"
                   value={editingCategory.name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Slug</label>
+                <label htmlFor="category-slug" className="block text-sm font-medium text-neutral-700 mb-1">Slug</label>
                 <input
                   type="text"
+                  id="category-slug"
+                  name="category-slug"
                   value={editingCategory.slug}
                   onChange={(e) => setEditingCategory({ ...editingCategory, slug: e.target.value })}
                   className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-neutral-50"
@@ -365,8 +427,8 @@ export default function AdminCategoriesPage() {
                 <label className="block text-sm font-medium text-neutral-700 mb-1">Imagen</label>
                 <div className="flex items-start gap-4">
                   <div className="relative w-24 h-24 bg-neutral-100 rounded-xl overflow-hidden flex-shrink-0">
-                    {editingCategory.image_url ? (
-                      <img src={editingCategory.image_url} alt={editingCategory.name} className="w-full h-full object-cover" />
+                    {editingCategory.imageUrl ? (
+                      <img src={editingCategory.imageUrl} alt={editingCategory.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <svg className="w-8 h-8 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -410,8 +472,8 @@ export default function AdminCategoriesPage() {
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">Categoría padre</label>
                 <select
-                  value={editingCategory.parent_id || ''}
-                  onChange={(e) => setEditingCategory({ ...editingCategory, parent_id: e.target.value || null })}
+                  value={editingCategory.parentId || ''}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, parentId: e.target.value || null })}
                   className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white"
                 >
                   <option value="">Sin categoría padre</option>
@@ -425,8 +487,8 @@ export default function AdminCategoriesPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={editingCategory.is_active}
-                  onChange={(e) => setEditingCategory({ ...editingCategory, is_active: e.target.checked })}
+                  checked={editingCategory.isActive}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, isActive: e.target.checked })}
                   className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm font-medium text-neutral-700">Categoría activa</span>

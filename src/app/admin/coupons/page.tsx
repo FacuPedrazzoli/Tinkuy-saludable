@@ -1,35 +1,38 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useQuery, useMutation } from '@apollo/client/react'
 import { formatPrice } from '@/lib/utils'
 import { ToastContainer, useToast } from '@/components/Toast'
+import { GET_COUPONS, CREATE_COUPON, UPDATE_COUPON, DELETE_COUPON } from '@/lib/graphql/queries'
+import { GraphQLCouponsResult, GraphQLCoupon } from '@/lib/graphql/types'
 
 interface Coupon {
   id: string
   code: string
   description: string | null
-  discount_type: string
-  discount_value: number
-  min_purchase: number
-  max_uses: number | null
-  uses_count: number
-  starts_at: string | null
-  expires_at: string | null
-  is_active: boolean
-  created_at: string
+  discountType: string
+  discountValue: number
+  minPurchase: number
+  maxUses: number | null
+  usesCount: number
+  startsAt: string | null
+  expiresAt: string | null
+  isActive: boolean
+  createdAt: string
 }
 
 const emptyCoupon = {
   id: undefined as string | undefined,
   code: '',
   description: '',
-  discount_type: 'percentage',
-  discount_value: 0,
-  min_purchase: 0,
-  max_uses: null as number | null,
-  starts_at: '',
-  expires_at: '',
-  is_active: true,
+  discountType: 'percentage',
+  discountValue: 0,
+  minPurchase: 0,
+  maxUses: null as number | null,
+  startsAt: '',
+  expiresAt: '',
+  isActive: true,
 }
 
 export default function AdminCouponsPage() {
@@ -41,120 +44,196 @@ export default function AdminCouponsPage() {
   const [saving, setSaving] = useState(false)
   const toast = useToast()
 
-  const fetchCoupons = useCallback(async () => {
-    try {
-      const res = await fetch('/api/coupons')
-      if (!res.ok) throw new Error('Error fetching coupons')
-      const data = await res.json()
-      setCoupons(data.coupons || [])
-    } catch (err) {
-      setError('Error cargando cupones')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data, refetch, loading: gqlLoading, error: gqlError } = useQuery<GraphQLCouponsResult>(GET_COUPONS, {
+    onError: (error) => {
+      console.error('Coupons query error:', error);
+      setError('Error cargando cupones');
+    },
+  });
 
   useEffect(() => {
-    fetchCoupons()
-  }, [fetchCoupons])
+    if (gqlLoading) {
+      setLoading(true)
+      setError(null)
+    }
+  }, [gqlLoading])
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (gqlError) {
+      setError('Error cargando cupones')
+      setLoading(false)
+    }
+  }, [gqlError])
+
+  useEffect(() => {
+    if (data?.coupons) {
+      setCoupons((data.coupons as GraphQLCoupon[]).map(c => ({
+        id: c.id || '',
+        code: c.code || '',
+        description: c.description ?? null,
+        discountType: c.discountType || 'percentage',
+        discountValue: c.discountValue ?? 0,
+        minPurchase: c.minPurchase ?? 0,
+        maxUses: c.maxUses ?? null,
+        usesCount: c.usesCount ?? 0,
+        startsAt: c.startsAt ?? null,
+        expiresAt: c.expiresAt ?? null,
+        isActive: c.isActive ?? true,
+        createdAt: c.createdAt || new Date().toISOString(),
+      })) as Coupon[])
+      setLoading(false)
+    }
+  }, [data])
+
+  const [createCoupon, { loading: createLoading }] = useMutation(CREATE_COUPON, {
+    onError: (error) => {
+      toast.error(error.message || 'Error al crear cupón');
+    },
+  })
+  const [updateCoupon, { loading: updateLoading }] = useMutation(UPDATE_COUPON, {
+    onError: (error) => {
+      toast.error(error.message || 'Error al actualizar cupón');
+    },
+  })
+  const [deleteCoupon, { loading: deleteLoading }] = useMutation(DELETE_COUPON, {
+    onError: (error) => {
+      toast.error(error.message || 'Error al eliminar cupón');
+    },
+  })
+
+  const handleSave = useCallback(async () => {
     if (!editingCoupon) return
+
+    const validationErrors: string[] = []
+    if (!editingCoupon.code.trim()) {
+      validationErrors.push('El código del cupón es requerido')
+    }
+    if (editingCoupon.discountValue <= 0) {
+      validationErrors.push('El valor del descuento debe ser mayor a 0')
+    }
+    if (editingCoupon.discountType === 'percentage' && editingCoupon.discountValue > 100) {
+      validationErrors.push('El porcentaje no puede ser mayor a 100')
+    }
+    if (editingCoupon.startsAt && editingCoupon.expiresAt) {
+      const startDate = new Date(editingCoupon.startsAt)
+      const endDate = new Date(editingCoupon.expiresAt)
+      if (endDate <= startDate) {
+        validationErrors.push('La fecha de vencimiento debe ser posterior a la fecha de inicio')
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors[0])
+      const codeInput = document.getElementById('coupon-code')
+      if (validationErrors[0].includes('código')) {
+        codeInput?.focus()
+      }
+      return
+    }
+
+    if (saving) return
     setSaving(true)
 
     try {
-      const url = editingCoupon.id
-        ? `/api/coupons/${editingCoupon.id}`
-        : '/api/coupons'
-      const method = editingCoupon.id ? 'PUT' : 'POST'
-
-      const payload = {
-        ...editingCoupon,
-        starts_at: editingCoupon.starts_at || null,
-        expires_at: editingCoupon.expires_at || null,
-        max_uses: editingCoupon.max_uses || null,
+      const input = {
+        code: editingCoupon.code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, ''),
+        description: editingCoupon.description?.trim().replace(/<[^>]*>/g, '') || null,
+        discountType: editingCoupon.discountType,
+        discountValue: editingCoupon.discountValue,
+        minPurchase: editingCoupon.minPurchase,
+        maxUses: editingCoupon.maxUses,
+        startsAt: editingCoupon.startsAt || null,
+        expiresAt: editingCoupon.expiresAt || null,
+        isActive: editingCoupon.isActive,
       }
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Error saving coupon')
+      if (editingCoupon.id) {
+        await updateCoupon({ variables: { id: editingCoupon.id, input } })
+      } else {
+        await createCoupon({ variables: { input } })
       }
 
       setShowModal(false)
       setEditingCoupon(null)
-      fetchCoupons()
-    } catch (err: any) {
-      toast.error(err.message)
+      refetch()
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     } finally {
       setSaving(false)
     }
-  }
+  }, [editingCoupon, createCoupon, updateCoupon, refetch, toast])
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar este cupón?')) return
 
     try {
-      const res = await fetch(`/api/coupons/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Error deleting coupon')
-      fetchCoupons()
-    } catch (err: any) {
-      toast.error(err.message)
+      await deleteCoupon({ variables: { id } })
+      refetch()
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     }
-  }
+  }, [deleteCoupon, refetch, toast])
 
-  const handleToggleActive = async (coupon: Coupon) => {
+  const handleToggleActive = useCallback(async (coupon: Coupon) => {
     try {
-      const res = await fetch(`/api/coupons/${coupon.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !coupon.is_active }),
+      await updateCoupon({
+        variables: {
+          id: coupon.id,
+          input: {
+            code: coupon.code,
+            description: coupon.description,
+            discountType: coupon.discountType,
+            discountValue: coupon.discountValue,
+            minPurchase: coupon.minPurchase,
+            maxUses: coupon.maxUses,
+            startsAt: coupon.startsAt,
+            expiresAt: coupon.expiresAt,
+            isActive: !coupon.isActive,
+          }
+        }
       })
-      if (!res.ok) throw new Error('Error updating coupon')
-      fetchCoupons()
-    } catch (err: any) {
-      toast.error(err.message)
+      refetch()
+    } catch (err) {
+      const error = err as Error
+      toast.error(error.message)
     }
-  }
+  }, [updateCoupon, refetch, toast])
 
-  const openEdit = (coupon: Coupon) => {
+  const openEdit = useCallback((coupon: Coupon) => {
     setEditingCoupon({
       id: coupon.id,
       code: coupon.code,
       description: coupon.description || '',
-      discount_type: coupon.discount_type,
-      discount_value: coupon.discount_value,
-      min_purchase: coupon.min_purchase,
-      max_uses: coupon.max_uses,
-      starts_at: coupon.starts_at ? coupon.starts_at.split('T')[0] : '',
-      expires_at: coupon.expires_at ? coupon.expires_at.split('T')[0] : '',
-      is_active: coupon.is_active,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      minPurchase: coupon.minPurchase,
+      maxUses: coupon.maxUses,
+      startsAt: coupon.startsAt ? coupon.startsAt.split('T')[0] : '',
+      expiresAt: coupon.expiresAt ? coupon.expiresAt.split('T')[0] : '',
+      isActive: coupon.isActive,
     })
     setShowModal(true)
-  }
+  }, [])
 
-  const openNew = () => {
+  const openNew = useCallback(() => {
     setEditingCoupon({ ...emptyCoupon })
     setShowModal(true)
-  }
+  }, [])
 
-  const isExpired = (coupon: Coupon) => {
-    if (!coupon.expires_at) return false
-    return new Date(coupon.expires_at) < new Date()
-  }
+  const isExpired = useCallback((coupon: Coupon) => {
+    if (!coupon.expiresAt) return false
+    return new Date(coupon.expiresAt) < new Date()
+  }, [])
 
-  const isValid = (coupon: Coupon) => {
-    if (!coupon.is_active) return false
+  const isValid = useCallback((coupon: Coupon) => {
+    if (!coupon.isActive) return false
     if (isExpired(coupon)) return false
-    if (coupon.starts_at && new Date(coupon.starts_at) > new Date()) return false
-    if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) return false
+    if (coupon.startsAt && new Date(coupon.startsAt) > new Date()) return false
+    if (coupon.maxUses && coupon.usesCount >= coupon.maxUses) return false
     return true
-  }
+  }, [isExpired])
 
   return (
     <div className="space-y-6">
@@ -182,7 +261,7 @@ export default function AdminCouponsPage() {
       ) : error ? (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
           <p className="text-red-600">{error}</p>
-          <button onClick={fetchCoupons} className="mt-2 text-primary-600 hover:underline">
+          <button onClick={() => refetch()} className="mt-2 text-primary-600 hover:underline">
             Reintentar
           </button>
         </div>
@@ -228,29 +307,29 @@ export default function AdminCouponsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-neutral-100 text-neutral-700 rounded-full text-sm font-medium">
-                        {coupon.discount_type === 'percentage' ? 'Porcentaje' : 'Fijo'}
+                        {coupon.discountType === 'percentage' ? 'Porcentaje' : 'Fijo'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-semibold text-neutral-900">
-                        {coupon.discount_type === 'percentage'
-                          ? `${coupon.discount_value}%`
-                          : formatPrice(coupon.discount_value)}
+                        {coupon.discountType === 'percentage'
+                          ? `${coupon.discountValue}%`
+                          : formatPrice(coupon.discountValue)}
                       </p>
-                      {coupon.min_purchase > 0 && (
-                        <p className="text-xs text-neutral-500">Mín: {formatPrice(coupon.min_purchase)}</p>
+                      {coupon.minPurchase > 0 && (
+                        <p className="text-xs text-neutral-500">Mín: {formatPrice(coupon.minPurchase)}</p>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-medium text-neutral-900">
-                        {coupon.uses_count}
-                        {coupon.max_uses ? ` / ${coupon.max_uses}` : ''}
+                        {coupon.usesCount}
+                        {coupon.maxUses ? ` / ${coupon.maxUses}` : ''}
                       </p>
                     </td>
                     <td className="px-6 py-4">
-                      {coupon.expires_at ? (
+                      {coupon.expiresAt ? (
                         <p className={`text-sm ${expired ? 'text-red-600' : 'text-neutral-900'}`}>
-                          {new Date(coupon.expires_at).toLocaleDateString('es-AR')}
+                          {new Date(coupon.expiresAt).toLocaleDateString('es-AR')}
                         </p>
                       ) : (
                         <span className="text-sm text-neutral-400">Sin vencimiento</span>
@@ -315,9 +394,11 @@ export default function AdminCouponsPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Código</label>
+                <label htmlFor="coupon-code" className="block text-sm font-medium text-neutral-700 mb-1">Código <span className="text-red-500">*</span></label>
                 <input
                   type="text"
+                  id="coupon-code"
+                  name="coupon-code"
                   value={editingCoupon.code}
                   onChange={(e) => setEditingCoupon({ ...editingCoupon, code: e.target.value.toUpperCase() })}
                   className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none font-mono"
@@ -338,8 +419,8 @@ export default function AdminCouponsPage() {
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Tipo</label>
                   <select
-                    value={editingCoupon.discount_type}
-                    onChange={(e) => setEditingCoupon({ ...editingCoupon, discount_type: e.target.value })}
+                    value={editingCoupon.discountType}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, discountType: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white"
                   >
                     <option value="percentage">Porcentaje</option>
@@ -350,8 +431,8 @@ export default function AdminCouponsPage() {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Valor</label>
                   <input
                     type="number"
-                    value={editingCoupon.discount_value}
-                    onChange={(e) => setEditingCoupon({ ...editingCoupon, discount_value: parseFloat(e.target.value) || 0 })}
+                    value={editingCoupon.discountValue}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, discountValue: parseFloat(e.target.value) || 0 })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                   />
                 </div>
@@ -360,8 +441,8 @@ export default function AdminCouponsPage() {
                 <label className="block text-sm font-medium text-neutral-700 mb-1">Compra mínima (ARS)</label>
                 <input
                   type="number"
-                  value={editingCoupon.min_purchase}
-                  onChange={(e) => setEditingCoupon({ ...editingCoupon, min_purchase: parseFloat(e.target.value) || 0 })}
+                  value={editingCoupon.minPurchase}
+                  onChange={(e) => setEditingCoupon({ ...editingCoupon, minPurchase: parseFloat(e.target.value) || 0 })}
                   className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                   placeholder="0"
                 />
@@ -371,8 +452,8 @@ export default function AdminCouponsPage() {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Fecha inicio</label>
                   <input
                     type="date"
-                    value={editingCoupon.starts_at}
-                    onChange={(e) => setEditingCoupon({ ...editingCoupon, starts_at: e.target.value })}
+                    value={editingCoupon.startsAt}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, startsAt: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                   />
                 </div>
@@ -380,8 +461,8 @@ export default function AdminCouponsPage() {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Fecha vencimiento</label>
                   <input
                     type="date"
-                    value={editingCoupon.expires_at}
-                    onChange={(e) => setEditingCoupon({ ...editingCoupon, expires_at: e.target.value })}
+                    value={editingCoupon.expiresAt}
+                    onChange={(e) => setEditingCoupon({ ...editingCoupon, expiresAt: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                   />
                 </div>
@@ -390,8 +471,8 @@ export default function AdminCouponsPage() {
                 <label className="block text-sm font-medium text-neutral-700 mb-1">Máximo de usos</label>
                 <input
                   type="number"
-                  value={editingCoupon.max_uses || ''}
-                  onChange={(e) => setEditingCoupon({ ...editingCoupon, max_uses: e.target.value ? parseInt(e.target.value) : null })}
+                  value={editingCoupon.maxUses || ''}
+                  onChange={(e) => setEditingCoupon({ ...editingCoupon, maxUses: e.target.value ? parseInt(e.target.value) : null })}
                   className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                   placeholder="Sin límite"
                 />
@@ -399,8 +480,8 @@ export default function AdminCouponsPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={editingCoupon.is_active}
-                  onChange={(e) => setEditingCoupon({ ...editingCoupon, is_active: e.target.checked })}
+                  checked={editingCoupon.isActive}
+                  onChange={(e) => setEditingCoupon({ ...editingCoupon, isActive: e.target.checked })}
                   className="w-5 h-5 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm font-medium text-neutral-700">Cupón activo</span>
@@ -415,7 +496,7 @@ export default function AdminCouponsPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || !editingCoupon.code || !editingCoupon.discount_value}
+                disabled={saving || !editingCoupon.code || !editingCoupon.discountValue}
                 className="px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium disabled:opacity-50"
               >
                 {saving ? 'Guardando...' : 'Guardar'}

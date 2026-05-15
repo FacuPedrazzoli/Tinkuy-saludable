@@ -39,15 +39,17 @@ export function ExitIntentPopup({
   if (!isVisible || isDismissed) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="exit-popup-title">
       <div
         className="absolute inset-0 bg-black/60"
         onClick={() => setIsDismissed(true)}
+        aria-hidden="true"
       />
       <div className="relative bg-white rounded-2xl p-8 max-w-md mx-4 shadow-2xl">
         <button
           onClick={() => setIsDismissed(true)}
           className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"
+          aria-label="Cerrar popup de descuento"
         >
           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -61,7 +63,7 @@ export function ExitIntentPopup({
             </svg>
           </div>
 
-          <h3 className="text-2xl font-bold text-neutral-900 font-display mb-2">
+          <h3 id="exit-popup-title" className="text-2xl font-bold text-neutral-900 font-display mb-2">
             ¡Espera! No te vayas todavía
           </h3>
           <p className="text-neutral-600 mb-6">
