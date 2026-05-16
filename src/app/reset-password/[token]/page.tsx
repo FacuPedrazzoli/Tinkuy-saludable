@@ -45,8 +45,9 @@ export default function ResetPasswordPage() {
         variables: { token, newPassword: sanitizedPassword },
       })
       router.push('/login?reset=success')
-    } catch (err: any) {
-      setError(err.message || 'Ocurrió un error. Intentalo de nuevo.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error. Intentalo de nuevo.'
+      setError(errorMessage)
     }
   }
 

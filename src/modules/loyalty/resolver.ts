@@ -4,8 +4,8 @@ import { getUserPointsSummary, redeemPoints, getUserPointsHistory } from './serv
 
 const prisma = new PrismaClient();
 
-(builder.objectType as any)('LoyaltyPointsSummary', {
-  fields: (t: any) => ({
+builder.objectType('LoyaltyPointsSummary', {
+  fields: (t) => ({
     currentPoints: t.exposeInt('currentPoints'),
     tier: t.exposeString('tier'),
     tierColor: t.exposeString('tierColor'),
@@ -13,8 +13,8 @@ const prisma = new PrismaClient();
   }),
 });
 
-(builder.objectType as any)('LoyaltyPointRecord', {
-  fields: (t: any) => ({
+builder.objectType('LoyaltyPointRecord', {
+  fields: (t) => ({
     id: t.exposeID('id'),
     points: t.exposeInt('points'),
     type: t.exposeString('type'),
@@ -24,8 +24,8 @@ const prisma = new PrismaClient();
   }),
 });
 
-(builder.objectType as any)('RedemptionResult', {
-  fields: (t: any) => ({
+builder.objectType('RedemptionResult', {
+  fields: (t) => ({
     pointsRedeemed: t.exposeInt('pointsRedeemed'),
     discountAmount: t.exposeFloat('discountAmount'),
   }),
@@ -36,7 +36,7 @@ builder.queryType({
     myLoyaltyPoints: t.field({
       type: 'LoyaltyPointsSummary',
       authScopes: { user: true },
-      resolve: async (_parent: any, _args: any, ctx: any) => {
+      resolve: async (_parent: unknown, _args: any, ctx: any) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }
@@ -52,7 +52,7 @@ builder.queryType({
       type: ['LoyaltyPointRecord'],
       authScopes: { user: true },
       args: { limit: t.arg.int({ defaultValue: 20 }) },
-      resolve: async (_parent: any, { limit }: any, ctx: any) => {
+      resolve: async (_parent: unknown, { limit }: any, ctx: any) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }
@@ -71,7 +71,7 @@ builder.mutationType({
         points: t.arg.int({ required: true }),
         orderId: t.arg.string(),
       },
-      resolve: async (_parent: any, { points, orderId }: any, ctx: any) => {
+      resolve: async (_parent: unknown, { points, orderId }: any, ctx: any) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }

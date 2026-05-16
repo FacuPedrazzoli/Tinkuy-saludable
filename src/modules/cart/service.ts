@@ -389,11 +389,11 @@ function formatCart(cart: {
     quantity: number;
     product: {
       name: string;
-      basePrice: any;
+      basePrice: bigint | number;
       images: Array<{ url: string }>;
-      variants: Array<{ price: any }>;
+      variants: Array<{ price: bigint | number }>;
     };
-    variant: { name: string; price: any } | null;
+    variant: { name: string; price: bigint | number } | null;
   }>;
 }): CartResult {
   const items: CartItemResult[] = cart.items.map((item) => {

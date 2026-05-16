@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { sign, verify } from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -282,7 +283,9 @@ export async function createPasswordResetToken(email: string): Promise<void> {
     },
   });
 
-  console.log(`Password reset token for ${email}: ${token}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Password reset token for ${email}: ${token}`);
+  }
 }
 
 export async function verifyPasswordResetToken(token: string): Promise<boolean> {
@@ -319,4 +322,8 @@ export async function resetPassword(token: string, newPassword: string): Promise
   });
 
   await prisma.passwordResetToken.delete({ where: { id: resetToken.id } });
+}
+
+export async function getUser() {
+  return null
 }

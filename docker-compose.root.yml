@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tinkuy_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tinkuy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tinkuy_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-tinkuy}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tinkuy}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinkuy_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: tinkuy_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tinkuy_network
+
+  backend:
+    build:
+      context: ./Back-Tinkuy-Saludable
+      dockerfile: Dockerfile
+    container_name: tinkuy_backend
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tinkuy}:${POSTGRES_PASSWORD:-tinkuy_dev}@postgres:5432/${POSTGRES_DB:-tinkuy}
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+      PORT: 4000
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./Back-Tinkuy-Saludable:/app
+      - /app/node_modules
+      - /app/dist
+    networks:
+      - tinkuy_network
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./tinkuy
+      dockerfile: Dockerfile
+    container_name: tinkuy_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_GRAPHQL_URL: http://localhost:4000/graphql
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: 1
+    depends_on:
+      - backend
+    volumes:
+      - ./tinkuy:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - tinkuy_network
+    command: npm run dev
+
+  nginx:
+    image: nginx:alpine
+    container_name: tinkuy_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Back-Tinkuy-Saludable/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - tinkuy_network
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  tinkuy_network:
+    name: tinkuy_network
