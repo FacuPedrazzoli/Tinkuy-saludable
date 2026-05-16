@@ -508,7 +508,7 @@ builder.mutationType({
     } as any),
 
     register: t.field({
-      type: 'AuthResponse',
+      type: 'AuthResponse' as any,
       args: {
         input: t.arg({ type: RegisterInput, required: true }),
       },

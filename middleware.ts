@@ -2,26 +2,24 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const ADMIN_ROUTES = ['/admin']
-const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password']
-const AUTH_ROUTES = ['/checkout', '/orders', '/perfil', '/wishlist']
+const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/admin/login']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isAdminRoute = ADMIN_ROUTES.some(route => pathname.startsWith(route))
-  const isAuthRoute = AUTH_ROUTES.some(route => pathname.startsWith(route))
   const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
 
-  const accessToken = request.cookies.get('access_token')?.value
-  const isAuthenticated = !!accessToken
+  const graphqlToken = request.cookies.get('graphql_token')?.value
+  const isAuthenticated = !!graphqlToken
 
-  if (isAdminRoute && !isAuthenticated) {
+  if (isAdminRoute && !isAuthenticated && !pathname.startsWith('/admin/login')) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('returnUrl', pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (isPublicRoute && isAuthenticated) {
+  if (isPublicRoute && isAuthenticated && !pathname.startsWith('/admin')) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 

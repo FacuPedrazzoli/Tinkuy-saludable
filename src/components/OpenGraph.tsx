@@ -23,6 +23,6 @@ export function buildOpenGraph(props: OpenGraphProps): Metadata['openGraph'] {
       alt: props.title,
     }] : [],
     locale: 'es_AR',
-    type: props.type || 'website',
+    type: props.type as 'website',
   }
 }

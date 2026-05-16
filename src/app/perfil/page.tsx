@@ -1,18 +1,27 @@
-import { Metadata } from 'next'
-import { redirect } from 'next/navigation'
+'use client'
+
 import Link from 'next/link'
-import { getUser } from '@/modules/auth/service'
+import { useAuth } from '@/hooks/useAuth'
 
-export const metadata: Metadata = {
-  title: 'Mi Perfil | Tinkuy',
-  description: 'Gestiona tu perfil, direcciones y pedidos en Tinkuy',
-}
+export default function ProfilePage() {
+  const { user, isLoading } = useAuth()
 
-export default async function ProfilePage() {
-  const user = await getUser()
-  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 pt-20 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
   if (!user) {
-    redirect('/login?returnUrl=/perfil')
+    return (
+      <div className="min-h-screen bg-neutral-50 pt-20 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-neutral-600 mb-4">Redirigiendo...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

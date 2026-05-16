@@ -13,12 +13,12 @@ export function ProductJsonLd({ product, url }: ProductJsonLdProps) {
     '@type': 'Product',
     name: product.name,
     description: product.description || product.shortDescription,
-    image: product.images?.[0] || product.image || '',
+    image: product.images?.[0] || '',
     url,
-    sku: product.sku || product.id,
+    sku: product.id,
     offe: {
       '@type': 'Offer',
-      price: product.basePrice,
+      price: product.price,
       priceCurrency: 'ARS',
       availability: product.stock && product.stock > 0
         ? 'https://schema.org/InStock'
@@ -27,7 +27,7 @@ export function ProductJsonLd({ product, url }: ProductJsonLdProps) {
     aggregateRating: product.rating ? {
       '@type': 'AggregateRating',
       ratingValue: product.rating.toString(),
-      reviewCount: product.reviewCount?.toString() || '1',
+      reviewCount: product.reviews?.toString() || '1',
     } : undefined,
   }
 

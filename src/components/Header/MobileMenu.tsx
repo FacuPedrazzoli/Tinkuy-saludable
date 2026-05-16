@@ -4,8 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { useAuth } from '@/hooks/useAuth'
-import { useWishlistStore } from '@/lib/store'
 
 interface MobileMenuProps {
   isOpen: boolean
@@ -15,8 +13,6 @@ interface MobileMenuProps {
 export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const pathname = usePathname()
   const mobileMenuRef = useRef<HTMLDivElement>(null)
-  const { isAuthenticated, user, logout } = useAuth()
-  const wishlistCount = useWishlistStore((state) => state.items.length)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,11 +50,6 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
       document.body.style.overflow = ''
     }
   }, [isOpen])
-
-  const handleLogout = async () => {
-    await logout()
-    onClose()
-  }
 
   if (!isOpen) return null
 
@@ -124,64 +115,6 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
           >
             Contacto
           </Link>
-          <Link
-            href="/wishlist"
-            onClick={onClose}
-            className="flex items-center gap-3 p-3 min-h-[44px]"
-          >
-            <svg className="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            <span className="text-neutral-700 font-medium">Mi Wishlist</span>
-            {wishlistCount > 0 && (
-              <span className="ml-auto px-2 py-0.5 bg-secondary-500 text-white text-xs font-bold rounded-full">
-                {wishlistCount > 9 ? '9+' : wishlistCount}
-              </span>
-            )}
-          </Link>
-
-          <div className="border-t border-neutral-100 my-2 pt-2">
-            {isAuthenticated ? (
-              <>
-                <Link
-                  href="/orders"
-                  onClick={onClose}
-                  className="flex items-center gap-3 p-3 min-h-[44px]"
-                >
-                  <svg className="w-5 h-5 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <span className="text-neutral-700 font-medium">Mis Pedidos</span>
-                </Link>
-                <div className="flex items-center gap-3 p-3 text-neutral-500">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span className="text-sm">{user?.email}</span>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 p-3 min-h-[44px] w-full text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  <span className="font-medium">Cerrar sesión</span>
-                </button>
-              </>
-            ) : (
-              <Link
-                href="/login"
-                onClick={onClose}
-                className="flex items-center justify-center gap-2 w-full py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors min-h-[48px]"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Ingresar
-              </Link>
-            )}
-          </div>
         </nav>
       </div>
     </div>

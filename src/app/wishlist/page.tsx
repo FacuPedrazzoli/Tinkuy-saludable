@@ -1,20 +1,33 @@
-import { Metadata } from 'next'
+'use client'
+
 import { useWishlistStore } from '@/lib/store'
 import { useHydration } from '@/hooks/useHydration'
 import { ProductCard } from '@/components/ProductCard'
 import Link from 'next/link'
-
-export const metadata: Metadata = {
-  title: 'Mi Lista de Deseos',
-  description: 'Guarda tus productos favoritos para comprarlos después.',
-}
 
 export default function WishlistPage() {
   const hydrated = useHydration()
   const items = useWishlistStore((state) => state.items)
 
   if (!hydrated) {
-    return null
+    return (
+      <div className="min-h-screen bg-neutral-50 pt-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-neutral-900 font-display mb-2">
+              Mi Lista de Deseos
+            </h1>
+          </div>
+          <div className="animate-pulse">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white rounded-2xl h-80" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
