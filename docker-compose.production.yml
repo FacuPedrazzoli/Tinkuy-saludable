@@ -1,0 +1,267 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────
+  # FRONTEND - Next.js Production
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: tinkuy-frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - PORT=3000
+      - NEXT_PUBLIC_GRAPHQL_URL=${NEXT_PUBLIC_GRAPHQL_URL}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+      - NEXT_PUBLIC_GA4_ID=${NEXT_PUBLIC_GA4_ID}
+      - NEXT_PUBLIC_FB_PIXEL_ID=${NEXT_PUBLIC_FB_PIXEL_ID}
+      - NEXT_PUBLIC_CLARITY_ID=${NEXT_PUBLIC_CLARITY_ID}
+      - NEXT_PUBLIC_MP_PUBLIC_KEY=${NEXT_PUBLIC_MP_PUBLIC_KEY}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - NEXT_PUBLIC_SENTRY_DSN=${SENTRY_DSN}
+    env_file:
+      - .env.production
+    volumes:
+      - frontend_uploads:/app/public/uploads:ro
+    networks:
+      - tinkuy-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─────────────────────────────────────────────
+  # BACKEND - Apollo Server + Express
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ../back-tinkuy-saludable
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    container_name: tinkuy-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    expose:
+      - "4000"
+    env_file:
+      - ../back-tinkuy-saludable/.env.production
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - JWT_ADMIN_SECRET=${JWT_ADMIN_SECRET}
+      - JWT_CUSTOMER_SECRET=${JWT_CUSTOMER_SECRET}
+      - MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN}
+      - MP_WEBHOOK_SECRET=${MP_WEBHOOK_SECRET}
+      - MP_MODE=${MP_MODE:-production}
+      - SENTRY_DSN=${BACKEND_SENTRY_DSN}
+      - RATE_LIMIT_GENERAL_WINDOW_MS=60000
+      - RATE_LIMIT_GENERAL_MAX_REQUESTS=100
+      - RATE_LIMIT_AUTH_WINDOW_MS=900000
+      - RATE_LIMIT_AUTH_MAX_REQUESTS=5
+      - RATE_LIMIT_CHECKOUT_WINDOW_MS=60000
+      - RATE_LIMIT_CHECKOUT_MAX_REQUESTS=10
+      - CART_TTL_SECONDS=86400
+      - STOCK_TTL_SECONDS=300
+      - WEBHOOK_TIMEOUT_MS=30000
+      - UPLOAD_DIR=/app/uploads
+      - MAX_FILE_SIZE_MB=5
+      - TRUST_PROXY=1
+      - LOG_LEVEL=info
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+    networks:
+      - tinkuy-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    stop_grace_period: 30s
+
+  # ─────────────────────────────────────────────
+  # REDIS - Cache & Sessions
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: tinkuy-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy volatile-lru
+      --maxmemory-samples 5
+      --tcp-keepalive 300
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tinkuy-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─────────────────────────────────────────────
+  # WORKER - Background Jobs (Emails, Webhooks)
+  # ─────────────────────────────────────────────
+  worker:
+    build:
+      context: ../back-tinkuy-saludable
+      dockerfile: Dockerfile.worker
+    container_name: tinkuy-worker
+    restart: unless-stopped
+    env_file:
+      - ../back-tinkuy-saludable/.env.production
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SENTRY_DSN=${BACKEND_SENTRY_DSN}
+      - WORKER_MODE=worker
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - tinkuy-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 30s
+
+  # ─────────────────────────────────────────────
+  # CRON - Scheduled Jobs
+  # ─────────────────────────────────────────────
+  cron:
+    build:
+      context: ../back-tinkuy-saludable
+      dockerfile: Dockerfile.cron
+    container_name: tinkuy-cron
+    restart: unless-stopped
+    env_file:
+      - ../back-tinkuy-saludable/.env.production
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SENTRY_DSN=${BACKEND_SENTRY_DSN}
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - tinkuy-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ─────────────────────────────────────────────
+# VOLUMES - Persistent Data
+# ─────────────────────────────────────────────
+volumes:
+  redis_data:
+    driver: local
+  frontend_uploads:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_logs:
+    driver: local
+
+# ─────────────────────────────────────────────
+# NETWORKS - Internal Communication
+# ─────────────────────────────────────────────
+networks:
+  tinkuy-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

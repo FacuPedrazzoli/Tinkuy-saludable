@@ -1,5 +1,10 @@
 'use client'
 
+export const metadata = {
+  title: 'Crear Cuenta | Tinkuy',
+  description: 'Creá tu cuenta en Tinkuy y empezá a comprar productos naturales.',
+}
+
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'

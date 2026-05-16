@@ -1,5 +1,10 @@
 'use client'
 
+export const metadata = {
+  title: 'Pago Pendiente | Tinkuy',
+  description: 'Tu pago está siendo procesado. Te notificaremos cuando se confirme.',
+}
+
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'

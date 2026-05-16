@@ -110,18 +110,18 @@ export async function getFilteredProducts(filters: {
   isKeto?: boolean;
   search?: string;
 }): Promise<Product[]> {
-  const where: any = { isActive: true };
+  const where: Record<string, unknown> = { isActive: true };
 
   if (filters.categorySlug) {
     where.category = { slug: filters.categorySlug };
   }
 
   if (filters.minPrice !== undefined) {
-    where.basePrice = { ...where.basePrice, gte: filters.minPrice };
+    where.basePrice = { gte: filters.minPrice };
   }
 
   if (filters.maxPrice !== undefined) {
-    where.basePrice = { ...where.basePrice, lte: filters.maxPrice };
+    where.basePrice = { ...(where.basePrice as object), lte: filters.maxPrice };
   }
 
   if (filters.isOrganic) where.isOrganic = true;
@@ -149,7 +149,25 @@ export async function getFilteredProducts(filters: {
   return products.map(adaptPrismaProduct);
 }
 
-function adaptPrismaProduct(product: any): Product {
+function adaptPrismaProduct(product: {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  shortDescription: string | null;
+  basePrice: unknown;
+  stock: number;
+  isFeatured: boolean;
+  brand: string | null;
+  isOrganic: boolean;
+  isGlutenFree: boolean;
+  isVegan: boolean;
+  isKeto: boolean;
+  createdAt: Date;
+  category?: { slug: string } | null;
+  images?: Array<{ url: string }>;
+  tags?: Array<{ tag: { name: string } }>;
+}): Product {
   return {
     id: product.id,
     name: product.name,
@@ -161,8 +179,8 @@ function adaptPrismaProduct(product: any): Product {
     category: product.category?.slug || '',
     subcategory: undefined,
     subcategories: undefined,
-    tags: product.tags?.map((t: any) => t.tag.name) || [],
-    images: product.images?.map((img: any) => img.url) || [],
+    tags: product.tags?.map((t) => t.tag.name) || [],
+    images: product.images?.map((img) => img.url) || [],
     ingredients: undefined,
     benefits: undefined,
     nutritionalInfo: undefined,

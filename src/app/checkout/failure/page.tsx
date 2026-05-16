@@ -1,5 +1,10 @@
 'use client'
 
+export const metadata = {
+  title: 'Pago Rechazado | Tinkuy',
+  description: 'Hubo un problema con tu pago. Podés reintentar o contactarnos.',
+}
+
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'

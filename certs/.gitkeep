@@ -1,0 +1,5 @@
+# SSL Certificates (DO NOT COMMIT)
+certs/*.pem
+certs/*.key
+certs/*.crt
+!</certs/.gitkeep

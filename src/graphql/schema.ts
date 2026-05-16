@@ -2,7 +2,7 @@ import { builder } from '@/graphql/builder';
 import { successResponse, errorResponse } from '@/lib/graphql/response';
 import { handleAppError, formatGraphQLErrors, createAppError } from '@/lib/errors';
 import { PrismaClient, OrderStatus, PaymentStatus } from '@prisma/client';
-import { getCart, addToCart, removeFromCart, updateCartItemQuantity, mergeGuestCart } from '@/modules/cart/service';
+import { getCart, addToCart, removeFromCart, updateCartItemQuantity, mergeGuestCart, CartItemResult } from '@/modules/cart/service';
 import { refreshAccessToken, revokeRefreshToken, revokeAllUserSessions, createPasswordResetToken, verifyPasswordResetToken, resetPassword, authenticateUser, createUser, createAuthTokens, getUserFromToken, hashPassword } from '@/modules/auth/service';
 import { processApprovedPayment, handlePaymentRejected, handlePaymentPending } from '@/modules/checkout/service';
 import '@/modules/reviews/resolver';
@@ -305,7 +305,7 @@ builder.queryType({
   fields: (t) => ({
     cart: t.field({
       type: 'CartResponse',
-      resolve: async (_root: unknown, _args: unknown, ctx: any) => {
+      resolve: async (_root: any, _args: any, ctx: any) => {
         try {
           const cart = await getCart(ctx.userId, ctx.sessionId);
           return successResponse(cart);
@@ -318,7 +318,7 @@ builder.queryType({
 
     me: t.field({
       type: 'User',
-      resolve: async (_root: unknown, _args: unknown, ctx: any) => {
+      resolve: async (_root: unknown, _args: Record<string, never>, ctx: { userId?: string }) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }
@@ -341,8 +341,8 @@ builder.queryType({
         categorySlug: t.arg.string(),
         search: t.arg.string(),
       },
-      resolve: async (_root: unknown, args: any) => {
-        const where: any = { isActive: true };
+      resolve: async (_root: any, args: any) => {
+        const where: Record<string, unknown> = { isActive: true };
         if (args.categorySlug) {
           where.category = { slug: args.categorySlug };
         }
@@ -369,10 +369,10 @@ builder.queryType({
         ]);
 
         return {
-          items: products.map((p: any) => ({
+          items: products.map((p) => ({
             ...p,
             basePrice: Number(p.basePrice),
-            images: p.images.map((i: any) => ({ ...i, url: i.url })),
+            images: p.images.map((i) => ({ ...i, url: i.url })),
           })),
           total,
           hasMore: (args.skip || 0) + products.length < total,
@@ -383,7 +383,7 @@ builder.queryType({
     product: t.field({
       type: 'Product',
       args: { slug: t.arg.string({ required: true }) },
-      resolve: async (_root: unknown, args: any) => {
+      resolve: async (_root: any, args: any) => {
         const product = await prisma.product.findUnique({
           where: { slug: args.slug },
           include: {
@@ -414,7 +414,7 @@ builder.queryType({
 
     myOrders: t.field({
       type: ['Order'],
-      resolve: async (_root: unknown, _args: unknown, ctx: any) => {
+      resolve: async (_root: unknown, _args: Record<string, never>, ctx: { userId?: string }) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }
@@ -429,7 +429,7 @@ builder.queryType({
     order: t.field({
       type: 'Order',
       args: { id: t.arg.string({ required: true }) },
-      resolve: async (_root: unknown, args: any, ctx: any) => {
+      resolve: async (_root: unknown, args: { id: string }, ctx: { userId?: string; user?: { role: string } }) => {
         const order = await prisma.order.findUnique({
           where: { id: args.id },
           include: { items: true },
@@ -446,7 +446,7 @@ builder.queryType({
           subtotal: Number(order.subtotal),
           shippingCost: Number(order.shippingCost),
           discount: Number(order.discount),
-          items: order.items.map((i: any) => ({
+          items: order.items.map((i) => ({
             ...i,
             price: Number(i.price),
             total: Number(i.total),
@@ -457,7 +457,7 @@ builder.queryType({
 
     orders: t.field({
       type: ['Order'],
-      resolve: async (_root: unknown, _args: unknown, ctx: any) => {
+      resolve: async (_root: any, _args: any, ctx: any) => {
         if (!ctx.userId || ctx.user?.role !== 'ADMIN') {
           throw new Error('No tienes permiso');
         }
@@ -478,7 +478,7 @@ builder.mutationType({
         email: t.arg.string({ required: true }),
         password: t.arg.string({ required: true }),
       },
-      resolve: async (_root: unknown, args: any) => {
+      resolve: async (_root: any, args: any) => {
         try {
           const user = await authenticateUser(args.email, args.password);
           if (!user) {
@@ -549,7 +549,7 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     addToCart: t.field({
       type: 'CartResponse',
@@ -565,7 +565,7 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     removeFromCart: t.field({
       type: 'CartResponse',
@@ -581,7 +581,7 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     updateCartItemQuantity: t.field({
       type: 'CartResponse',
@@ -597,7 +597,7 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     mergeGuestCart: t.field({
       type: 'CartResponse',
@@ -619,7 +619,7 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     createProduct: t.field({
       type: 'ProductResponse',
@@ -691,7 +691,7 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     updateProduct: t.field({
       type: 'ProductResponse',
@@ -725,19 +725,19 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     deleteProduct: t.field({
       type: 'Boolean',
       args: { id: t.arg.string({ required: true }) },
-      resolve: async (_root: unknown, args: any, ctx: any) => {
+      resolve: async (_root: unknown, args: { id: string }, ctx: { userId?: string; user?: { role: string } }) => {
         if (!ctx.userId || ctx.user?.role !== 'ADMIN') {
           throw new Error('No tienes permiso');
         }
         await prisma.product.delete({ where: { id: args.id } });
         return true;
       },
-    } as any),
+    }),
 
     createOrder: t.field({
       type: 'OrderResponse',
@@ -757,7 +757,7 @@ builder.mutationType({
 
           let userId: string | null = ctx.userId || null;
 
-          const subtotal = cart.items.reduce((sum: number, item: any) => {
+          const subtotal = cart.items.reduce((sum: number, item: CartItemResult) => {
             return sum + parseFloat(item.price) * item.quantity;
           }, 0);
 
@@ -783,7 +783,7 @@ builder.mutationType({
               shippingAddress: args.input.shippingAddress,
               couponCode: args.input.couponCode,
               items: {
-                create: cart.items.map((item: any) => ({
+                create: cart.items.map((item: CartItemResult) => ({
                   name: item.name,
                   price: parseFloat(item.price),
                   quantity: item.quantity,
@@ -802,7 +802,7 @@ builder.mutationType({
             subtotal: Number(order.subtotal),
             shippingCost: Number(order.shippingCost),
             discount: Number(order.discount),
-            items: order.items.map((i: any) => ({
+            items: order.items.map((i) => ({
               ...i,
               price: Number(i.price),
               total: Number(i.total),
@@ -813,7 +813,7 @@ builder.mutationType({
           return errorResponse(formatGraphQLErrors([appError]), appError.message);
         }
       },
-    } as any),
+    }),
 
     updateOrderStatus: t.field({
       type: 'OrderResponse',
@@ -837,7 +837,7 @@ builder.mutationType({
             subtotal: Number(order.subtotal),
             shippingCost: Number(order.shippingCost),
             discount: Number(order.discount),
-            items: order.items.map((i: any) => ({
+            items: order.items.map((i) => ({
               ...i,
               price: Number(i.price),
               total: Number(i.total),
@@ -919,7 +919,7 @@ builder.mutationType({
 
     revokeAllSessions: t.field({
       type: 'Int',
-      resolve: async (_root: unknown, _args: unknown, ctx: any) => {
+      resolve: async (_root: unknown, _args: any, ctx: any) => {
         try {
           if (!ctx.userId) {
             throw new Error('Authentication required');

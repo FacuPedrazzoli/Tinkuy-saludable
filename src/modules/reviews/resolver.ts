@@ -3,8 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-(builder.objectType as any)('Review', {
-  fields: (t: any) => ({
+builder.objectType('Review', {
+  fields: (t) => ({
     id: t.exposeID('id'),
     productId: t.exposeString('productId'),
     userId: t.exposeString('userId'),
@@ -15,24 +15,24 @@ const prisma = new PrismaClient();
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     user: t.field({
       type: 'UserBasic',
-      resolve: (review: any) => ({
+      resolve: (review) => ({
         firstName: review.user?.firstName || 'Usuario',
         lastName: review.user?.lastName || '',
       }),
-    } as any),
+    }),
   }),
 });
 
-(builder.objectType as any)('UserBasic', {
-  fields: (t: any) => ({
+builder.objectType('UserBasic', {
+  fields: (t) => ({
     firstName: t.exposeString('firstName'),
     lastName: t.exposeString('lastName'),
   }),
 });
 
-(builder.objectType as any)('ReviewConnection', {
-  fields: (t: any) => ({
-    reviews: t.field({ type: ['Review'], resolve: (parent: any) => parent.reviews } as any),
+builder.objectType('ReviewConnection', {
+  fields: (t) => ({
+    reviews: t.field({ type: ['Review'], resolve: (parent) => parent.reviews }),
     total: t.exposeInt('total'),
     hasMore: t.exposeBoolean('hasMore'),
   }),
@@ -65,7 +65,7 @@ builder.mutationType({
       nullable: true,
       args: { input: t.arg({ type: CreateReviewInput, required: true }) },
       authScopes: { user: true },
-      resolve: async (_parent: any, { input }: any, ctx: any) => {
+      resolve: async (_parent: unknown, { input }: any, ctx: any) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }
@@ -98,13 +98,13 @@ builder.mutationType({
           },
         });
       },
-    } as any),
+    }),
 
     approveReview: t.field({
       type: 'Review',
       args: { reviewId: t.arg.string({ required: true }) },
       authScopes: { role: 'admin' },
-      resolve: async (_parent: any, { reviewId }: any, ctx: any) => {
+      resolve: async (_parent: unknown, { reviewId }: any, ctx: any) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }
@@ -123,7 +123,7 @@ builder.mutationType({
       type: 'Boolean',
       args: { reviewId: t.arg.string({ required: true }) },
       authScopes: { user: true },
-      resolve: async (_parent: any, { reviewId }: any, ctx: any) => {
+      resolve: async (_parent: unknown, { reviewId }: any, ctx: any) => {
         if (!ctx.userId) {
           throw new Error('No autenticado');
         }
@@ -156,7 +156,7 @@ builder.queryType({
         first: t.arg.int({ defaultValue: 10 }),
         skip: t.arg.int({ defaultValue: 0 }),
       },
-      resolve: async (_parent: any, { productId, first, skip }: any) => {
+      resolve: async (_parent: unknown, { productId, first, skip }: any) => {
         const [reviews, total] = await Promise.all([
           prisma.review.findMany({
             where: { productId, isApproved: true },
@@ -179,7 +179,7 @@ builder.queryType({
     productRatingSummary: t.field({
       type: 'RatingSummary',
       args: { productId: t.arg.string({ required: true }) },
-      resolve: async (_parent: any, { productId }: any) => {
+      resolve: async (_parent: unknown, { productId }: any) => {
         const reviews = await prisma.review.findMany({
           where: { productId, isApproved: true },
           select: { rating: true },
@@ -207,8 +207,8 @@ builder.queryType({
   }),
 });
 
-(builder.objectType as any)('RatingSummary', {
-  fields: (t: any) => ({
+builder.objectType('RatingSummary', {
+  fields: (t) => ({
     averageRating: t.exposeFloat('averageRating'),
     totalReviews: t.exposeInt('totalReviews'),
     distribution: t.expose('distribution', {

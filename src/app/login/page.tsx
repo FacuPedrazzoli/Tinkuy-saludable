@@ -1,5 +1,10 @@
 'use client'
 
+export const metadata = {
+  title: 'Iniciar Sesión | Tinkuy',
+  description: 'Ingresá a tu cuenta para ver tus pedidos y gestionar tus datos.',
+}
+
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'

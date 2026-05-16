@@ -4,8 +4,8 @@ import { z } from 'zod';
 
 const prisma = new PrismaClient();
 
-(builder.objectType as any)('NewsletterSubscriber', {
-  fields: (t: any) => ({
+builder.objectType('NewsletterSubscriber', {
+  fields: (t) => ({
     id: t.exposeID('id'),
     email: t.exposeString('email'),
     isActive: t.exposeBoolean('isActive'),
@@ -21,7 +21,7 @@ builder.mutationType({
         email: t.arg.string({ required: true }),
         source: t.arg.string({ defaultValue: 'FOOTER' }),
       },
-      resolve: async (_parent: any, { email, source }: any) => {
+      resolve: async (_parent: unknown, { email, source }: { email: string; source?: string }) => {
         const emailSchema = z.string().email();
         if (!emailSchema.safeParse(email).success) {
           throw new Error('Email inválido');
@@ -59,19 +59,19 @@ builder.mutationType({
           },
         });
       },
-    } as any),
+    }),
 
     unsubscribeFromNewsletter: t.field({
       type: 'Boolean',
       args: { email: t.arg.string({ required: true }) },
-      resolve: async (_parent: any, { email }: any) => {
+      resolve: async (_parent: unknown, { email }: { email: string }) => {
         await prisma.newsletterSubscriber.update({
           where: { email: email.toLowerCase() },
           data: { isActive: false, unsubscribedAt: new Date() },
         });
         return true;
       },
-    } as any),
+    }),
   }),
 });
 
@@ -93,12 +93,12 @@ builder.queryType({
 
         return { total, active, thisMonth };
       },
-    } as any),
+    }),
   }),
 });
 
-(builder.objectType as any)('NewsletterStats', {
-  fields: (t: any) => ({
+builder.objectType('NewsletterStats', {
+  fields: (t) => ({
     total: t.exposeInt('total'),
     active: t.exposeInt('active'),
     thisMonth: t.exposeInt('thisMonth'),

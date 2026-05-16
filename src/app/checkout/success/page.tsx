@@ -1,5 +1,10 @@
 'use client'
 
+export const metadata = {
+  title: '¡Compra Exitosa! | Tinkuy',
+  description: 'Tu pedido fue confirmado. Te enviamos los detalles a tu email.',
+}
+
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
