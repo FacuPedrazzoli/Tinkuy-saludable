@@ -10,6 +10,6 @@ export const siteConfig: SiteConfig = {
   social: {
     instagram: 'https://instagram.com/tinkuy',
     facebook: 'https://facebook.com/tinkuy',
-    whatsapp: 'https://wa.me/541152540950',
+    whatsapp: 'https://wa.me/5492221430090',
   },
 }

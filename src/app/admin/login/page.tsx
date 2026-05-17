@@ -5,42 +5,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useMutation } from '@apollo/client/react'
 import { ADMIN_LOGIN } from '@/lib/graphql/queries'
-
-const ALGORITHM = 'aes-256-cbc'
-const IV_LENGTH = 16
-const COOKIE_SECRET = process.env.NEXT_PUBLIC_COOKIE_SECRET || 'default-fallback-secret-32bytes!!'
-
-async function encrypt(text: string): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(COOKIE_SECRET),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  )
-  const key = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: new TextEncoder().encode('tinkuy-salt'), iterations: 100000, hash: 'SHA-256' },
-    keyMaterial,
-    { name: ALGORITHM, length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  )
-  const encrypted = await crypto.subtle.encrypt(
-    { name: ALGORITHM, iv },
-    key,
-    new TextEncoder().encode(text)
-  )
-  const encryptedArray = new Uint8Array(encrypted)
-  const encryptedHex = Array.from(encryptedArray).map(b => b.toString(16).padStart(2, '0')).join('')
-  return `${Buffer.from(iv).toString('hex')}:${encryptedHex}`
-}
+import { encryptAuthCookie } from '@/lib/authCrypto'
 
 function setCookie(name: string, value: string, days: number = 7) {
   if (typeof document === 'undefined') return
   const expires = new Date(Date.now() + days * 864e5).toUTCString()
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax${secure}; HttpOnly`
+  // No HttpOnly: a cookie set via document.cookie that includes HttpOnly is
+  // rejected by the browser (HttpOnly can only come from a server Set-Cookie).
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax${secure}`
 }
 
 export default function AdminLoginPage() {
@@ -79,7 +52,7 @@ export default function AdminLoginPage() {
           input: {
             email: sanitizedEmail,
             password: password,
-            tenantId: 'default'
+            tenantId: process.env.NEXT_PUBLIC_TENANT_ID || 'default'
           }
         }
       })
@@ -96,10 +69,12 @@ export default function AdminLoginPage() {
           role: loginData.adminLogin.user.role,
           tenantId: loginData.adminLogin.user.tenantId
         }
-        const encryptedUser = await encrypt(JSON.stringify(userData))
+        const encryptedUser = await encryptAuthCookie(JSON.stringify(userData))
         setCookie('auth_user', encryptedUser)
+        // Tell AuthProvider to re-read the session immediately (it otherwise
+        // only checks on mount + every 60s), else ProtectedRoute bounces.
+        window.dispatchEvent(new Event('auth_changed'))
         router.push('/admin')
-        router.refresh()
       }
     } catch (err) {
       setError('Credenciales incorrectas')
@@ -175,12 +150,6 @@ export default function AdminLoginPage() {
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
 
-          <p className="text-center text-sm text-neutral-500 mt-4">
-            ¿Olvidaste tu contraseña?{' '}
-            <Link href="/forgot-password" className="text-primary-600 hover:text-primary-700 font-medium">
-              Recuperarla
-            </Link>
-          </p>
         </form>
 
         <Link

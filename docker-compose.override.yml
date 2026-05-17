@@ -1,0 +1,14 @@
+# =============================================================================
+# docker-compose.override.yml — LOCAL DEV ONLY
+# =============================================================================
+# This file is loaded automatically by `docker compose` when running locally.
+# It is NOT used by Dokploy (Dokploy only reads docker-compose.yml).
+#
+# Purpose: publish host port so developers can reach the frontend directly.
+# =============================================================================
+
+services:
+
+  frontend:
+    ports:
+      - "3000:3000"

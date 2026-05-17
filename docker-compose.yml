@@ -1,42 +1,71 @@
-version: '3.8'
+# =============================================================================
+# docker-compose.yml — Tinkuy-saludable — Canonical Dokploy file
+# =============================================================================
+# Dokploy deploys THIS repo as a standalone app. Traefik (managed by Dokploy)
+# handles SSL and domain routing — no nginx service is needed here.
+#
+# The frontend calls the backend via the PUBLIC URL (NEXT_PUBLIC_GRAPHQL_URL).
+# There is no Docker network link between this repo and the backend repo —
+# each repo is an independent Dokploy application.
+#
+# NEXT_PUBLIC_* variables are baked into the Next.js bundle at build time.
+# They must be declared as both build args (for `npm run build`) AND as runtime
+# environment variables (for SSR paths that read process.env at request time).
+#
+# Usage:
+#   Production (Dokploy):  point Dokploy at this file; supply env vars via
+#                          Dokploy's environment UI or a .env file on the host.
+#   Local dev:             `docker compose up` — the override file
+#                          (docker-compose.override.yml) is loaded automatically.
+#
+# All variables are sourced from ${VAR} — see .env.example for the full list.
+# =============================================================================
 
 services:
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND — Next.js standalone server (port 3000)
+  # Dokploy/Traefik routes external traffic here.
+  # No database. No Redis. No depends_on.
+  # ---------------------------------------------------------------------------
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: tinkuy-frontend
+      args:
+        # NEXT_PUBLIC_* must be passed as build args so Next.js inlines them
+        # into the client bundle during `npm run build`.
+        NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL}
+        NEXT_PUBLIC_TENANT_ID: ${NEXT_PUBLIC_TENANT_ID}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_MP_PUBLIC_KEY: ${NEXT_PUBLIC_MP_PUBLIC_KEY:-}
+        NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+        NEXT_PUBLIC_FB_PIXEL_ID: ${NEXT_PUBLIC_FB_PIXEL_ID:-}
+        NEXT_PUBLIC_CLARITY_ID: ${NEXT_PUBLIC_CLARITY_ID:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+    restart: unless-stopped
+    expose:
+      - "3000"
     environment:
       NODE_ENV: production
-      NEXT_TELEMETRY_DISABLED: 1
-      PORT: 3000
-      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-https://api.tinkuy.com.ar/graphql}
-      NEXT_PUBLIC_GA4_ID: ${NEXT_PUBLIC_GA4_ID:-}
-      NEXT_PUBLIC_FB_PIXEL_ID: ${NEXT_PUBLIC_FB_PIXEL_ID:-}
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+
+      # Runtime mirrors of build args — needed for SSR code paths that read
+      # process.env at request time (e.g. API route handlers, server components).
+      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL}
+      NEXT_PUBLIC_TENANT_ID: ${NEXT_PUBLIC_TENANT_ID}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
       NEXT_PUBLIC_MP_PUBLIC_KEY: ${NEXT_PUBLIC_MP_PUBLIC_KEY:-}
-      SENTRY_DSN: ${SENTRY_DSN:-}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://tinkuy.com.ar}
+      NEXT_PUBLIC_GA_ID: ${NEXT_PUBLIC_GA_ID:-}
+      NEXT_PUBLIC_FB_PIXEL_ID: ${NEXT_PUBLIC_FB_PIXEL_ID:-}
       NEXT_PUBLIC_CLARITY_ID: ${NEXT_PUBLIC_CLARITY_ID:-}
-    ports:
-      - "3000:3000"
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    container_name: tinkuy-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/nginx/certs:ro
-    depends_on:
-      - frontend
-    restart: unless-stopped
+      start_period: 60s
+    stop_grace_period: 15s

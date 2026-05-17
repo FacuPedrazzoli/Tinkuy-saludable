@@ -181,7 +181,7 @@ export default function RegisterPage() {
             email: sanitizeInput(formData.email).toLowerCase(),
             phone: formData.phone.replace(/\D/g, ''),
             password: formData.password,
-            tenantId: 'default'
+            tenantId: process.env.NEXT_PUBLIC_TENANT_ID || 'default'
           }
         }
       })

@@ -2,7 +2,7 @@ export interface GraphQLProductImage {
   id: string
   url: string
   altText: string | null
-  sortOrder: number
+  position: number
 }
 
 export interface GraphQLProductTag {
@@ -72,11 +72,24 @@ export interface GraphQLOrder {
   items: GraphQLOrderItem[]
 }
 
+// Relay connection helpers
+export interface PageInfo {
+  hasNextPage: boolean
+  endCursor: string | null
+}
+
+export interface GraphQLEdge<T> {
+  node: T
+}
+
+export interface GraphQLConnection<T> {
+  edges: GraphQLEdge<T>[]
+  pageInfo: PageInfo
+  totalCount: number
+}
+
 export interface GraphQLProductsResult {
-  products: {
-    items: GraphQLProduct[]
-    count: number
-  }
+  products: GraphQLConnection<GraphQLProduct>
 }
 
 export interface GraphQLAdminUser {
@@ -127,14 +140,11 @@ export interface GraphQLMyCartResult {
 }
 
 export interface GraphQLOrdersResult {
-  orders: {
-    items: GraphQLOrder[]
-    count: number
-  }
+  orders: GraphQLConnection<GraphQLOrder>
 }
 
 export interface GraphQLMyOrdersResult {
-  myOrders: GraphQLOrder[]
+  myOrders: GraphQLConnection<GraphQLOrder>
 }
 
 export interface GraphQLOrderResult {
@@ -165,12 +175,12 @@ export interface GraphQLCustomer {
   email: string
   firstName: string
   lastName: string
-  phone: string | null
+  phone?: string | null
   totalOrders: number
   totalSpent: number
-  createdAt: string
+  createdAt?: string
 }
 
 export interface GraphQLCustomersResult {
-  customers: GraphQLCustomer[]
+  customers: GraphQLConnection<GraphQLCustomer>
 }

@@ -1,5 +1,18 @@
 /** @type {import('next').NextConfig} */
 
+// The browser blocks any fetch whose origin is not in connect-src. The
+// frontend talks to the backend at NEXT_PUBLIC_GRAPHQL_URL, so its origin
+// MUST be allowed. Derived here so dev (localhost:4000) and prod
+// (api.tinkuy.com.ar) stay coherent with whatever the env points to.
+const graphqlUrl =
+  process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql'
+let graphqlOrigin = 'http://localhost:4000'
+try {
+  graphqlOrigin = new URL(graphqlUrl).origin
+} catch {
+  /* keep fallback */
+}
+
 const securityHeaders = [
   {
     key: 'Content-Security-Policy',
@@ -9,8 +22,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: https: blob:",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://api.mercadopago.com https://webhook.mercadopago.com wss://*.mercadopago.com https://vitals.vercel-insights.com",
-      "frame-src 'https://www.mercadopago.com.ar' https://sandbox.mercadopago.com https://www.mercadopago.com",
+      `connect-src 'self' ${graphqlOrigin} http://localhost:4000 https://www.google-analytics.com https://analytics.google.com https://api.mercadopago.com https://webhook.mercadopago.com wss://*.mercadopago.com https://vitals.vercel-insights.com`,
+      "frame-src https://www.mercadopago.com.ar https://sandbox.mercadopago.com https://www.mercadopago.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -108,7 +121,7 @@ const nextConfig = {
   },
 
   experimental: {
-    optimizePackageImports: ['@apollo/client', '@prisma/client', 'zod'],
+    optimizePackageImports: ['@apollo/client', 'zod'],
   },
 };
 

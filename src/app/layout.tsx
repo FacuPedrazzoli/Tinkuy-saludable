@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import './globals.css'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
 import { siteConfig } from '@/data/siteConfig'
 import { Providers } from '@/components/Providers'
 
@@ -110,6 +111,7 @@ export default function RootLayout({
             <Header />
             <main id="main-content" className="flex-1 relative z-10 pb-20 md:pb-0">{children}</main>
             <Footer />
+            <WhatsAppButton />
             <CartDrawer />
             <CookieConsent />
             <DevTools />

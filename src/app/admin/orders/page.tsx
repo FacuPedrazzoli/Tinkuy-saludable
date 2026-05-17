@@ -71,8 +71,9 @@ interface GraphQLOrder {
 
 interface GraphQLOrdersData {
   orders: {
-    items: GraphQLOrder[]
-    count: number
+    edges: Array<{ node: GraphQLOrder }>
+    pageInfo: { hasNextPage: boolean; endCursor: string | null }
+    totalCount: number
   }
 }
 
@@ -82,25 +83,20 @@ interface GraphQLOrderData {
 
 const statusConfig: Record<string, { label: string; es: string; color: string; bgColor: string; dot: string }> = {
   pending: { label: 'Pendiente', es: 'Pendiente', color: 'text-amber-700 dark:text-amber-300', bgColor: 'bg-amber-50 dark:bg-amber-900/30', dot: 'bg-amber-500' },
-  paid: { label: 'Pagado', es: 'Pagado', color: 'text-emerald-700 dark:text-emerald-300', bgColor: 'bg-emerald-50 dark:bg-emerald-900/30', dot: 'bg-emerald-500' },
-  preparing: { label: 'Preparando', es: 'Preparando', color: 'text-blue-700 dark:text-blue-300', bgColor: 'bg-blue-50 dark:bg-blue-900/30', dot: 'bg-blue-500' },
-  shipped: { label: 'Enviado', es: 'Enviado', color: 'text-purple-700 dark:text-purple-300', bgColor: 'bg-purple-50 dark:bg-purple-900/30', dot: 'bg-purple-500' },
-  delivered: { label: 'Entregado', es: 'Entregado', color: 'text-teal-700 dark:text-teal-300', bgColor: 'bg-teal-50 dark:bg-teal-900/30', dot: 'bg-teal-500' },
+  confirmed: { label: 'Confirmado', es: 'Confirmado', color: 'text-emerald-700 dark:text-emerald-300', bgColor: 'bg-emerald-50 dark:bg-emerald-900/30', dot: 'bg-emerald-500' },
   cancelled: { label: 'Cancelado', es: 'Cancelado', color: 'text-red-700 dark:text-red-300', bgColor: 'bg-red-50 dark:bg-red-900/30', dot: 'bg-red-500' },
+  refunded: { label: 'Reintegrado', es: 'Reintegrado', color: 'text-blue-700 dark:text-blue-300', bgColor: 'bg-blue-50 dark:bg-blue-900/30', dot: 'bg-blue-500' },
 }
 
 const paymentConfig: Record<string, { label: string; es: string; color: string; bgColor: string }> = {
   pending: { label: 'Pendiente', es: 'Pendiente', color: 'text-amber-700', bgColor: 'bg-amber-50' },
-  paid: { label: 'Pagado', es: 'Pagado', color: 'text-emerald-700', bgColor: 'bg-emerald-50' },
-  failed: { label: 'Fallido', es: 'Fallido', color: 'text-red-700', bgColor: 'bg-red-50' },
+  approved: { label: 'Aprobado', es: 'Aprobado', color: 'text-emerald-700', bgColor: 'bg-emerald-50' },
+  rejected: { label: 'Rechazado', es: 'Rechazado', color: 'text-red-700', bgColor: 'bg-red-50' },
   refunded: { label: 'Reintegrado', es: 'Reintegrado', color: 'text-blue-700', bgColor: 'bg-blue-50' },
 }
 
 const nextStatus: Record<string, string> = {
-  pending: 'paid',
-  paid: 'preparing',
-  preparing: 'shipped',
-  shipped: 'delivered',
+  pending: 'confirmed',
 }
 
 function SkeletonRow() {
@@ -124,7 +120,7 @@ export default function AdminOrdersPage() {
   const toast = useToast()
 
   const { data: ordersData, loading: gqlLoading, error: gqlError, refetch } = useQuery<GraphQLOrdersData>(GET_ORDERS, {
-    variables: { status: filterStatus || undefined, take: 100 },
+    variables: { status: filterStatus || undefined, first: 100 },
     pollInterval: 60000,
   })
 
@@ -175,10 +171,10 @@ export default function AdminOrdersPage() {
           customer_name: gqlOrder.customerName || 'Cliente',
           customer_email: gqlOrder.customerEmail || '',
           customer_phone: null,
-          total: gqlOrder.totalAmount,
-          subtotal: gqlOrder.subtotalAmount || gqlOrder.totalAmount,
-          shipping_cost: gqlOrder.shippingCost || 0,
-          discount_amount: gqlOrder.discountAmount || 0,
+          total: parseFloat(String(gqlOrder.totalAmount)) || 0,
+          subtotal: parseFloat(String(gqlOrder.subtotalAmount || gqlOrder.totalAmount)) || 0,
+          shipping_cost: parseFloat(String(gqlOrder.shippingCost || 0)) || 0,
+          discount_amount: parseFloat(String(gqlOrder.discountAmount || 0)) || 0,
           status: gqlOrder.status,
           payment_status: gqlOrder.paymentStatus,
           payment_method: gqlOrder.paymentMethod || null,
@@ -188,11 +184,11 @@ export default function AdminOrdersPage() {
           order_items: gqlOrder.items?.map(item => ({
             id: item.id,
             product_name: item.name,
-            product_price: item.price,
+            product_price: parseFloat(String(item.price)) || 0,
             quantity: item.quantity,
             weight: 0,
-            unit_price: item.price,
-            total_price: item.total,
+            unit_price: parseFloat(String(item.price)) || 0,
+            total_price: parseFloat(String(item.total)) || 0,
           })),
         }
         setSelectedOrder(mappedOrder)
@@ -202,16 +198,16 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const orders: Order[] = (ordersData?.orders?.items || []).map((o) => ({
+  const orders: Order[] = (ordersData?.orders?.edges?.map(e => e.node) || []).map((o) => ({
     id: o.id,
     order_number: o.orderNumber || `#${o.id.slice(0, 8).toUpperCase()}`,
     customer_name: o.customerName || 'Cliente',
     customer_email: o.customerEmail || '',
     customer_phone: null,
-    total: o.totalAmount,
-    subtotal: o.subtotalAmount || o.totalAmount,
-    shipping_cost: o.shippingCost || 0,
-    discount_amount: o.discountAmount || 0,
+    total: parseFloat(String(o.totalAmount)) || 0,
+    subtotal: parseFloat(String(o.subtotalAmount || o.totalAmount)) || 0,
+    shipping_cost: parseFloat(String(o.shippingCost || 0)) || 0,
+    discount_amount: parseFloat(String(o.discountAmount || 0)) || 0,
     status: o.status,
     payment_status: o.paymentStatus,
     payment_method: o.paymentMethod || null,
@@ -221,11 +217,11 @@ export default function AdminOrdersPage() {
     order_items: o.items?.map(item => ({
       id: item.id,
       product_name: item.name,
-      product_price: item.price,
+      product_price: parseFloat(String(item.price)) || 0,
       quantity: item.quantity,
       weight: 0,
-      unit_price: item.price,
-      total_price: item.total,
+      unit_price: parseFloat(String(item.price)) || 0,
+      total_price: parseFloat(String(item.total)) || 0,
     })),
   }))
 
@@ -406,7 +402,7 @@ export default function AdminOrdersPage() {
                         >
                           Ver
                         </button>
-                        {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                        {nextStatus[order.status] && (
                           <button
                             onClick={() => updateStatus(order.id, nextStatus[order.status])}
                             className="px-3 py-1.5 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors font-medium"
@@ -458,7 +454,7 @@ export default function AdminOrdersPage() {
                       {statusConfig[selectedOrder.status]?.es}
                     </span>
                   </div>
-                      {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
+                      {selectedOrder.status === 'pending' && (
                         <select
                           value={selectedOrder.status}
                           onChange={async (e) => {
@@ -468,11 +464,21 @@ export default function AdminOrdersPage() {
                           className="mt-3 w-full px-3 py-2 rounded-lg border-0 bg-white text-sm"
                         >
                       <option value="pending">Pendiente</option>
-                      <option value="paid">Pagado</option>
-                      <option value="preparing">Preparando</option>
-                      <option value="shipped">Enviado</option>
-                      <option value="delivered">Entregado</option>
+                      <option value="confirmed">Confirmado</option>
+                    </select>
+                  )}
+                      {selectedOrder.status === 'confirmed' && (
+                        <select
+                          value={selectedOrder.status}
+                          onChange={async (e) => {
+                            await updateStatus(selectedOrder.id, e.target.value)
+                            await refetchOrder({ id: selectedOrder.id })
+                          }}
+                          className="mt-3 w-full px-3 py-2 rounded-lg border-0 bg-white text-sm"
+                        >
+                      <option value="confirmed">Confirmado</option>
                       <option value="cancelled">Cancelado</option>
+                      <option value="refunded">Reintegrado</option>
                     </select>
                   )}
                 </div>

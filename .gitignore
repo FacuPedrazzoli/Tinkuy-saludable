@@ -48,3 +48,5 @@ next-env.d.ts
 
 # Prisma
 prisma/dev.db
+# Production secrets — never commit
+.env.production

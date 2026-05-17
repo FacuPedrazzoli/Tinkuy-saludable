@@ -109,19 +109,25 @@ export default function AdminCategoriesPage() {
     setSaving(true)
 
     try {
-      const input = {
-        name: editingCategory.name.trim().replace(/<[^>]*>/g, ''),
-        slug: editingCategory.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
-        description: editingCategory.description?.trim().replace(/<[^>]*>/g, '') || null,
-        imageUrl: editingCategory.imageUrl || null,
-        parentId: editingCategory.parentId,
-        isActive: editingCategory.isActive,
-      }
-
       if (editingCategory.id) {
-        await updateCategory({ variables: { id: editingCategory.id, input } })
+        const updateInput = {
+          name: editingCategory.name.trim().replace(/<[^>]*>/g, ''),
+          slug: editingCategory.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
+          description: editingCategory.description?.trim().replace(/<[^>]*>/g, '') || null,
+          imageUrl: editingCategory.imageUrl || null,
+          parentId: editingCategory.parentId,
+          isActive: editingCategory.isActive,
+        }
+        await updateCategory({ variables: { id: editingCategory.id, input: updateInput } })
       } else {
-        await createCategory({ variables: { input } })
+        const createInput = {
+          name: editingCategory.name.trim().replace(/<[^>]*>/g, ''),
+          slug: editingCategory.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'),
+          description: editingCategory.description?.trim().replace(/<[^>]*>/g, '') || null,
+          imageUrl: editingCategory.imageUrl || null,
+          parentId: editingCategory.parentId,
+        }
+        await createCategory({ variables: { input: createInput } })
       }
 
       setShowModal(false)
@@ -213,7 +219,7 @@ export default function AdminCategoriesPage() {
       await reorderCategories({
         variables: {
           input: {
-            categories: cats.map((c, i) => ({ id: c.id, sortOrder: i }))
+            orderedIds: cats.map(c => c.id)
           }
         },
       })

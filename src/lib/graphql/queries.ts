@@ -23,7 +23,7 @@ export const PRODUCT_FRAGMENT = gql`
       id
       url
       altText
-      sortOrder
+      position
     }
     tags {
       tag {
@@ -36,12 +36,18 @@ export const PRODUCT_FRAGMENT = gql`
 `;
 
 export const GET_PRODUCTS = gql`
-  query GetProducts($search: String, $tagSlug: String, $isVisible: Boolean, $take: Int, $skip: Int) {
-    products(search: $search, tagSlug: $tagSlug, isVisible: $isVisible, take: $take, skip: $skip) {
-      items {
-        ...ProductFields
+  query GetProducts($search: String, $tagSlug: String, $isVisible: Boolean, $first: Int, $after: String) {
+    products(search: $search, tagSlug: $tagSlug, isVisible: $isVisible, first: $first, after: $after) {
+      edges {
+        node {
+          ...ProductFields
+        }
       }
-      count
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
     }
   }
   ${PRODUCT_FRAGMENT}
@@ -217,42 +223,57 @@ export const CHECKOUT = gql`
 `;
 
 export const GET_ORDERS = gql`
-  query GetOrders($status: String, $take: Int, $skip: Int) {
-    orders(status: $status, take: $take, skip: $skip) {
-      items {
-        id
-        status
-        paymentStatus
-        totalAmount
-        createdAt
-        items {
+  query GetOrders($status: String, $first: Int, $after: String) {
+    orders(status: $status, first: $first, after: $after) {
+      edges {
+        node {
           id
-          name
-          price
-          quantity
-          total
+          status
+          paymentStatus
+          totalAmount
+          createdAt
+          items {
+            id
+            name
+            price
+            quantity
+            total
+          }
         }
       }
-      count
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
     }
   }
 `;
 
 export const GET_MY_ORDERS = gql`
-  query GetMyOrders {
-    myOrders {
-      id
-      status
-      paymentStatus
-      totalAmount
-      createdAt
-      items {
-        id
-        name
-        price
-        quantity
-        total
+  query GetMyOrders($first: Int, $after: String) {
+    myOrders(first: $first, after: $after) {
+      edges {
+        node {
+          id
+          status
+          paymentStatus
+          totalAmount
+          createdAt
+          items {
+            id
+            name
+            price
+            quantity
+            total
+          }
+        }
       }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
     }
   }
 `;
@@ -297,14 +318,6 @@ export const GET_ADMIN_METRICS = gql`
       revenueToday
       revenueThisMonth
       avgOrderValue
-      ordersByStatus {
-        status
-        count
-      }
-      ordersByPayment {
-        paymentStatus
-        count
-      }
     }
   }
 `;
@@ -357,7 +370,7 @@ export const ADMIN_PRODUCT_FRAGMENT = gql`
       id
       url
       altText
-      sortOrder
+      position
     }
     tags {
       tag {
@@ -370,12 +383,18 @@ export const ADMIN_PRODUCT_FRAGMENT = gql`
 `;
 
 export const GET_ADMIN_PRODUCTS = gql`
-  query GetAdminProducts($search: String, $tagSlug: String, $isVisible: Boolean, $take: Int, $skip: Int) {
-    products(search: $search, tagSlug: $tagSlug, isVisible: $isVisible, take: $take, skip: $skip) {
-      items {
-        ...AdminProductFields
+  query GetAdminProducts($search: String, $tagSlug: String, $isVisible: Boolean, $first: Int, $after: String) {
+    products(search: $search, tagSlug: $tagSlug, isVisible: $isVisible, first: $first, after: $after) {
+      edges {
+        node {
+          ...AdminProductFields
+        }
       }
-      count
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
     }
   }
   ${ADMIN_PRODUCT_FRAGMENT}
@@ -500,7 +519,10 @@ export const DELETE_CATEGORY = gql`
 
 export const REORDER_CATEGORIES = gql`
   mutation ReorderCategories($input: ReorderCategoriesInput!) {
-    reorderCategories(input: $input)
+    reorderCategories(input: $input) {
+      id
+      sortOrder
+    }
   }
 `;
 
@@ -566,16 +588,25 @@ export const DELETE_COUPON = gql`
 `;
 
 export const GET_CUSTOMERS = gql`
-  query GetCustomers($search: String) {
-    customers(search: $search) {
-      id
-      email
-      firstName
-      lastName
-      phone
-      totalOrders
-      totalSpent
-      createdAt
+  query GetCustomers($search: String, $first: Int, $after: String) {
+    customers(search: $search, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          email
+          firstName
+          lastName
+          phone
+          totalOrders
+          totalSpent
+          createdAt
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      totalCount
     }
   }
 `;
@@ -586,33 +617,14 @@ export const CREATE_IMAGE = gql`
       id
       url
       altText
-      sortOrder
+      position
     }
   }
 `;
 
 export const DELETE_IMAGE = gql`
   mutation DeleteImage($id: String!) {
-    deleteImage(id: $id) {
-      id
-    }
+    deleteImage(id: $id)
   }
 `;
 
-export const REVOKE_TOKEN = gql`
-  mutation RevokeToken {
-    revokeToken
-  }
-`;
-
-export const FORGOT_PASSWORD = gql`
-  mutation ForgotPassword($email: String!) {
-    forgotPassword(email: $email)
-  }
-`;
-
-export const RESET_PASSWORD = gql`
-  mutation ResetPassword($token: String!, $newPassword: String!) {
-    resetPassword(token: $token, newPassword: $newPassword)
-  }
-`;

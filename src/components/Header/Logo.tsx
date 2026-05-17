@@ -8,7 +8,7 @@ export function Logo() {
   return (
     <Link href="/" className="flex items-center">
       <Image
-        src="/logo-tinkuy.png"
+        src="/logo-tinkuy-sin-fondo.png"
         alt={siteConfig.name}
         width={160}
         height={50}

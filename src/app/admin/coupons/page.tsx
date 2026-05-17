@@ -26,7 +26,7 @@ const emptyCoupon = {
   id: undefined as string | undefined,
   code: '',
   description: '',
-  discountType: 'percentage',
+  discountType: 'PERCENTAGE',
   discountValue: 0,
   minPurchase: 0,
   maxUses: null as number | null,
@@ -106,8 +106,14 @@ export default function AdminCouponsPage() {
     if (editingCoupon.discountValue <= 0) {
       validationErrors.push('El valor del descuento debe ser mayor a 0')
     }
-    if (editingCoupon.discountType === 'percentage' && editingCoupon.discountValue > 100) {
+    if (editingCoupon.discountType === 'PERCENTAGE' && editingCoupon.discountValue > 100) {
       validationErrors.push('El porcentaje no puede ser mayor a 100')
+    }
+    if (!editingCoupon.startsAt) {
+      validationErrors.push('La fecha de inicio es requerida')
+    }
+    if (!editingCoupon.expiresAt) {
+      validationErrors.push('La fecha de vencimiento es requerida')
     }
     if (editingCoupon.startsAt && editingCoupon.expiresAt) {
       const startDate = new Date(editingCoupon.startsAt)
@@ -130,22 +136,31 @@ export default function AdminCouponsPage() {
     setSaving(true)
 
     try {
-      const input = {
-        code: editingCoupon.code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, ''),
-        description: editingCoupon.description?.trim().replace(/<[^>]*>/g, '') || null,
-        discountType: editingCoupon.discountType,
-        discountValue: editingCoupon.discountValue,
-        minPurchase: editingCoupon.minPurchase,
-        maxUses: editingCoupon.maxUses,
-        startsAt: editingCoupon.startsAt || null,
-        expiresAt: editingCoupon.expiresAt || null,
-        isActive: editingCoupon.isActive,
-      }
-
       if (editingCoupon.id) {
-        await updateCoupon({ variables: { id: editingCoupon.id, input } })
+        const updateInput = {
+          code: editingCoupon.code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, ''),
+          description: editingCoupon.description?.trim().replace(/<[^>]*>/g, '') || null,
+          discountType: editingCoupon.discountType,
+          discountValue: editingCoupon.discountValue,
+          minPurchase: editingCoupon.minPurchase,
+          maxUses: editingCoupon.maxUses,
+          startsAt: editingCoupon.startsAt || null,
+          expiresAt: editingCoupon.expiresAt || null,
+          isActive: editingCoupon.isActive,
+        }
+        await updateCoupon({ variables: { id: editingCoupon.id, input: updateInput } })
       } else {
-        await createCoupon({ variables: { input } })
+        const createInput = {
+          code: editingCoupon.code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, ''),
+          description: editingCoupon.description?.trim().replace(/<[^>]*>/g, '') || null,
+          discountType: editingCoupon.discountType,
+          discountValue: editingCoupon.discountValue,
+          minPurchase: editingCoupon.minPurchase,
+          maxUses: editingCoupon.maxUses,
+          startsAt: editingCoupon.startsAt!,
+          expiresAt: editingCoupon.expiresAt!,
+        }
+        await createCoupon({ variables: { input: createInput } })
       }
 
       setShowModal(false)
@@ -302,12 +317,12 @@ export default function AdminCouponsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-neutral-100 text-neutral-700 rounded-full text-sm font-medium">
-                        {coupon.discountType === 'percentage' ? 'Porcentaje' : 'Fijo'}
+                        {coupon.discountType === 'PERCENTAGE' ? 'Porcentaje' : 'Fijo'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-semibold text-neutral-900 dark:text-white">
-                        {coupon.discountType === 'percentage'
+                        {coupon.discountType === 'PERCENTAGE'
                           ? `${coupon.discountValue}%`
                           : formatPrice(coupon.discountValue)}
                       </p>
@@ -418,8 +433,8 @@ export default function AdminCouponsPage() {
                     onChange={(e) => setEditingCoupon({ ...editingCoupon, discountType: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white"
                   >
-                    <option value="percentage">Porcentaje</option>
-                    <option value="fixed">Monto fijo</option>
+                    <option value="PERCENTAGE">Porcentaje</option>
+                    <option value="FIXED">Monto fijo</option>
                   </select>
                 </div>
                 <div>
@@ -444,21 +459,23 @@ export default function AdminCouponsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Fecha inicio</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Fecha inicio <span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     value={editingCoupon.startsAt}
                     onChange={(e) => setEditingCoupon({ ...editingCoupon, startsAt: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                    required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Fecha vencimiento</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Fecha vencimiento <span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     value={editingCoupon.expiresAt}
                     onChange={(e) => setEditingCoupon({ ...editingCoupon, expiresAt: e.target.value })}
                     className="w-full px-4 py-2.5 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                    required
                   />
                 </div>
               </div>
@@ -491,7 +508,7 @@ export default function AdminCouponsPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || !editingCoupon.code || !editingCoupon.discountValue}
+                disabled={saving || !editingCoupon.code || !editingCoupon.discountValue || !editingCoupon.startsAt || !editingCoupon.expiresAt}
                 className="px-5 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium disabled:opacity-50"
               >
                 {saving ? 'Guardando...' : 'Guardar'}

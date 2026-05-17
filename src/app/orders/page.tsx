@@ -53,9 +53,16 @@ export default function OrdersPage() {
   })
 
   useEffect(() => {
-    const ordersData = data as { myOrders?: Order[] } | undefined
-    if (ordersData?.myOrders) {
-      setOrders(ordersData.myOrders)
+    type MyOrdersResult = {
+      myOrders?: {
+        edges: Array<{ node: Order }>
+        pageInfo: { hasNextPage: boolean; endCursor: string | null }
+        totalCount: number
+      }
+    }
+    const ordersData = data as MyOrdersResult | undefined
+    if (ordersData?.myOrders?.edges) {
+      setOrders(ordersData.myOrders.edges.map(e => e.node))
     }
   }, [data])
 

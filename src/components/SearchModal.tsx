@@ -10,18 +10,21 @@ import { formatPrice } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { TIMEOUTS } from '@/lib/constants'
 
+interface ProductSearchNode {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  basePrice: string
+  images: Array<{ url: string }>
+  tags: Array<{ tag: { name: string } }>
+}
+
 interface ProductsQueryResult {
   products: {
-    items: Array<{
-      id: string
-      name: string
-      slug: string
-      description: string | null
-      basePrice: string
-      images: Array<{ url: string }>
-      tags: Array<{ tag: { name: string } }>
-    }>
-    count: number
+    edges: Array<{ node: ProductSearchNode }>
+    pageInfo: { hasNextPage: boolean; endCursor: string | null }
+    totalCount: number
   }
 }
 
@@ -50,12 +53,12 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     variables: {
       search: debouncedQuery || undefined,
       isVisible: true,
-      take: 6,
+      first: 6,
     },
     skip: !debouncedQuery.trim() && !activeFilter,
   })
 
-  const results: Product[] = productsData?.products.items.map((item) => ({
+  const results: Product[] = productsData?.products.edges.map(({ node: item }) => ({
     id: item.id,
     name: item.name,
     slug: item.slug,

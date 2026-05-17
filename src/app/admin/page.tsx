@@ -43,8 +43,6 @@ interface AdminMetricsData {
     revenueToday: number
     revenueThisMonth: number
     avgOrderValue: number
-    ordersByStatus: { status: string; count: number }[]
-    ordersByPayment: { paymentStatus: string; count: number }[]
   }
 }
 
@@ -56,32 +54,33 @@ interface TopProductsData {
   topProducts: TopProduct[]
 }
 
+interface OrderNode {
+  id: string
+  status: string
+  paymentStatus: string
+  totalAmount: number
+  createdAt: string
+}
+
 interface OrdersData {
   orders: {
-    items: {
-      id: string
-      status: string
-      paymentStatus: string
-      totalAmount: number
-      createdAt: string
-    }[]
-    count: number
+    edges: Array<{ node: OrderNode }>
+    pageInfo: { hasNextPage: boolean; endCursor: string | null }
+    totalCount: number
   }
 }
 
 const statusConfig: Record<string, { es: string; bgColor: string; dot: string; textColor: string }> = {
   pending: { es: 'Pendiente', bgColor: 'bg-amber-50 dark:bg-amber-900/30', dot: 'bg-amber-500', textColor: 'text-amber-700 dark:text-amber-300' },
-  paid: { es: 'Pagado', bgColor: 'bg-emerald-50 dark:bg-emerald-900/30', dot: 'bg-emerald-500', textColor: 'text-emerald-700 dark:text-emerald-300' },
-  preparing: { es: 'Preparando', bgColor: 'bg-blue-50 dark:bg-blue-900/30', dot: 'bg-blue-500', textColor: 'text-blue-700 dark:text-blue-300' },
-  shipped: { es: 'Enviado', bgColor: 'bg-purple-50 dark:bg-purple-900/30', dot: 'bg-purple-500', textColor: 'text-purple-700 dark:text-purple-300' },
-  delivered: { es: 'Entregado', bgColor: 'bg-teal-50 dark:bg-teal-900/30', dot: 'bg-teal-500', textColor: 'text-teal-700 dark:text-teal-300' },
+  confirmed: { es: 'Confirmado', bgColor: 'bg-emerald-50 dark:bg-emerald-900/30', dot: 'bg-emerald-500', textColor: 'text-emerald-700 dark:text-emerald-300' },
   cancelled: { es: 'Cancelado', bgColor: 'bg-red-50 dark:bg-red-900/30', dot: 'bg-red-500', textColor: 'text-red-700 dark:text-red-300' },
+  refunded: { es: 'Reintegrado', bgColor: 'bg-blue-50 dark:bg-blue-900/30', dot: 'bg-blue-500', textColor: 'text-blue-700 dark:text-blue-300' },
 }
 
 const paymentConfig: Record<string, { es: string; bgColor: string; textColor: string }> = {
   pending: { es: 'Pendiente', bgColor: 'bg-amber-50 dark:bg-amber-900/30', textColor: 'text-amber-700 dark:text-amber-300' },
-  paid: { es: 'Pagado', bgColor: 'bg-emerald-50 dark:bg-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-300' },
-  failed: { es: 'Fallido', bgColor: 'bg-red-50 dark:bg-red-900/30', textColor: 'text-red-700 dark:text-red-300' },
+  approved: { es: 'Aprobado', bgColor: 'bg-emerald-50 dark:bg-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-300' },
+  rejected: { es: 'Rechazado', bgColor: 'bg-red-50 dark:bg-red-900/30', textColor: 'text-red-700 dark:text-red-300' },
   refunded: { es: 'Reintegrado', bgColor: 'bg-blue-50 dark:bg-blue-900/30', textColor: 'text-blue-700 dark:text-blue-300' },
 }
 
@@ -100,7 +99,7 @@ function SkeletonCard() {
 }
 
 function computeMetricsFromOrders(ordersData: OrdersData | undefined): Metrics {
-  if (!ordersData?.orders?.items) {
+  if (!ordersData?.orders?.edges) {
     return {
       totalOrders: 0,
       pendingOrders: 0,
@@ -112,7 +111,7 @@ function computeMetricsFromOrders(ordersData: OrdersData | undefined): Metrics {
     }
   }
 
-  const items = ordersData.orders.items
+  const items = ordersData.orders.edges.map(e => e.node)
   const totalOrders = items.length
   const pendingOrders = items.filter(o => o.status === 'pending').length
 
@@ -123,8 +122,8 @@ function computeMetricsFromOrders(ordersData: OrdersData | undefined): Metrics {
   const ordersThisMonth = items.filter(o => o.createdAt >= startOfMonth)
   const ordersToday = items.filter(o => o.createdAt >= startOfToday)
 
-  const revenueThisMonth = ordersThisMonth.reduce((sum, o) => sum + o.totalAmount, 0)
-  const revenueToday = ordersToday.reduce((sum, o) => sum + o.totalAmount, 0)
+  const revenueThisMonth = ordersThisMonth.reduce((sum, o) => sum + parseFloat(String(o.totalAmount)), 0)
+  const revenueToday = ordersToday.reduce((sum, o) => sum + parseFloat(String(o.totalAmount)), 0)
   const avgOrderValue = totalOrders > 0 ? revenueThisMonth / totalOrders : 0
 
   return {
@@ -139,9 +138,6 @@ function computeMetricsFromOrders(ordersData: OrdersData | undefined): Metrics {
 }
 
 export default function AdminDashboard() {
-  const [ordersByStatus, setOrdersByStatus] = useState<Record<string, number>>({})
-  const [ordersByPayment, setOrdersByPayment] = useState<Record<string, number>>({})
-
   const { data: metricsData, loading: metricsLoading, error: metricsError, refetch: refetchMetrics } = useQuery<AdminMetricsData>(GET_ADMIN_METRICS, {
     pollInterval: 120000,
   })
@@ -154,7 +150,7 @@ export default function AdminDashboard() {
     pollInterval: 120000,
   })
   const { data: ordersData, loading: ordersLoading, error: ordersError } = useQuery<OrdersData>(GET_ORDERS, {
-    variables: { take: 100 },
+    variables: { first: 100 },
   })
 
   const loading = metricsLoading || recentOrdersLoading || topProductsLoading || ordersLoading
@@ -177,7 +173,7 @@ export default function AdminDashboard() {
       }
     : computedMetrics
 
-  const recentOrders: Order[] = recentOrdersData?.recentOrders || (ordersData as OrdersData | undefined)?.orders?.items?.slice(0, 5).map(o => ({
+  const recentOrders: Order[] = recentOrdersData?.recentOrders || (ordersData as OrdersData | undefined)?.orders?.edges?.slice(0, 5).map(({ node: o }) => ({
     id: o.id || '',
     orderNumber: `#${(o.id || '').slice(0, 8).toUpperCase()}`,
     customerName: 'Cliente',
@@ -219,13 +215,23 @@ export default function AdminDashboard() {
     )
   }
 
-  const computedOrdersByStatus: Record<string, number> = metricsData?.adminMetrics?.ordersByStatus
-    ? Object.fromEntries(metricsData.adminMetrics.ordersByStatus.map(s => [s.status, s.count]))
-    : ordersByStatus
+  const computedOrdersByStatus: Record<string, number> = (() => {
+    const items = (ordersData as OrdersData | undefined)?.orders?.edges?.map(e => e.node) || []
+    const result: Record<string, number> = {}
+    for (const o of items) {
+      result[o.status] = (result[o.status] || 0) + 1
+    }
+    return result
+  })()
 
-  const computedOrdersByPayment: Record<string, number> = metricsData?.adminMetrics?.ordersByPayment
-    ? Object.fromEntries(metricsData.adminMetrics.ordersByPayment.map(p => [p.paymentStatus, p.count]))
-    : ordersByPayment
+  const computedOrdersByPayment: Record<string, number> = (() => {
+    const items = (ordersData as OrdersData | undefined)?.orders?.edges?.map(e => e.node) || []
+    const result: Record<string, number> = {}
+    for (const o of items) {
+      result[o.paymentStatus] = (result[o.paymentStatus] || 0) + 1
+    }
+    return result
+  })()
 
   const totalOrdersCount = Object.values(computedOrdersByStatus).reduce((a, b) => a + b, 0)
 

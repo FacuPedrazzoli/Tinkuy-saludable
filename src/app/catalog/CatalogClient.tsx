@@ -8,19 +8,22 @@ import { ProductGridSkeleton } from '@/components/ProductGridSkeleton'
 import { Product } from '@/types'
 import { GET_PRODUCTS, GET_TAGS } from '@/lib/graphql/queries'
 
+interface ProductNode {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  basePrice: string
+  isFeatured: boolean
+  images: Array<{ url: string }>
+  tags: Array<{ tag: { name: string } }>
+}
+
 interface ProductsQueryResult {
   products: {
-    items: Array<{
-      id: string
-      name: string
-      slug: string
-      description: string | null
-      basePrice: string
-      isFeatured: boolean
-      images: Array<{ url: string }>
-      tags: Array<{ tag: { name: string } }>
-    }>
-    count: number
+    edges: Array<{ node: ProductNode }>
+    pageInfo: { hasNextPage: boolean; endCursor: string | null }
+    totalCount: number
   }
 }
 
@@ -68,8 +71,7 @@ function CatalogContent() {
       search: debouncedSearch || undefined,
       tagSlug: selectedCategory || undefined,
       isVisible: true,
-      take: 24,
-      skip: (currentPage - 1) * 24,
+      first: 24,
     },
     skip: false,
   });
@@ -81,7 +83,7 @@ function CatalogContent() {
       return;
     }
     if (productsData?.products) {
-      const items: Product[] = productsData.products.items.map((item) => ({
+      const items: Product[] = productsData.products.edges.map(({ node: item }) => ({
         id: item.id,
         name: item.name,
         slug: item.slug,
@@ -109,8 +111,8 @@ function CatalogContent() {
         createdAt: new Date().toISOString(),
       }))
       setProducts(items)
-      setTotal(productsData.products.count)
-      setTotalPages(Math.ceil(productsData.products.count / 24))
+      setTotal(productsData.products.totalCount)
+      setTotalPages(Math.ceil(productsData.products.totalCount / 24))
       setLoading(false)
       setQueryError(null);
     }

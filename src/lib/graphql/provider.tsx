@@ -23,10 +23,12 @@ function createApolloClient() {
       return { headers };
     }
     const token = getCookieValue('graphql_token');
+    const tenantId = process.env.NEXT_PUBLIC_TENANT_ID;
     return {
       headers: {
         ...headers,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
       },
     };
   });
@@ -63,24 +65,47 @@ function createApolloClient() {
             products: {
               keyArgs: ['search', 'tagSlug', 'isVisible'],
               merge(existing, incoming, { args }) {
-                if (!args?.skip || args.skip === 0) {
+                if (!args?.after) {
                   return incoming;
                 }
                 return {
                   ...incoming,
-                  items: [...(existing?.items || []), ...(incoming?.items || [])],
+                  edges: [...(existing?.edges || []), ...(incoming?.edges || [])],
                 };
               },
             },
             orders: {
               keyArgs: ['status'],
               merge(existing, incoming, { args }) {
-                if (!args?.skip || args.skip === 0) {
+                if (!args?.after) {
                   return incoming;
                 }
                 return {
                   ...incoming,
-                  items: [...(existing?.items || []), ...(incoming?.items || [])],
+                  edges: [...(existing?.edges || []), ...(incoming?.edges || [])],
+                };
+              },
+            },
+            myOrders: {
+              merge(existing, incoming, { args }) {
+                if (!args?.after) {
+                  return incoming;
+                }
+                return {
+                  ...incoming,
+                  edges: [...(existing?.edges || []), ...(incoming?.edges || [])],
+                };
+              },
+            },
+            customers: {
+              keyArgs: ['search'],
+              merge(existing, incoming, { args }) {
+                if (!args?.after) {
+                  return incoming;
+                }
+                return {
+                  ...incoming,
+                  edges: [...(existing?.edges || []), ...(incoming?.edges || [])],
                 };
               },
             },
@@ -90,11 +115,6 @@ function createApolloClient() {
               },
             },
             coupons: {
-              merge(existing, incoming) {
-                return incoming;
-              },
-            },
-            customers: {
               merge(existing, incoming) {
                 return incoming;
               },

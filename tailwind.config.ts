@@ -103,8 +103,30 @@ const config: Config = {
         'slide-in': 'slideIn 0.3s ease-out',
         'scale': 'scale 0.2s ease-out',
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+        'float': 'floatY 6s ease-in-out infinite',
+        'float-slow': 'floatY 9s ease-in-out infinite',
+        'sway': 'sway 7s ease-in-out infinite',
+        'spin-slow': 'spin 40s linear infinite',
+        'draw': 'draw 2.4s ease-out forwards',
+        'leaf-in': 'leafIn 0.8s ease-out backwards',
       },
       keyframes: {
+        floatY: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-14px)' },
+        },
+        sway: {
+          '0%, 100%': { transform: 'rotate(-2.5deg)' },
+          '50%': { transform: 'rotate(2.5deg)' },
+        },
+        draw: {
+          '0%': { strokeDashoffset: '1' },
+          '100%': { strokeDashoffset: '0' },
+        },
+        leafIn: {
+          '0%': { opacity: '0', transform: 'scale(0.4)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
