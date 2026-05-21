@@ -43,6 +43,10 @@ services:
         NEXT_PUBLIC_FB_PIXEL_ID: ${NEXT_PUBLIC_FB_PIXEL_ID:-}
         NEXT_PUBLIC_CLARITY_ID: ${NEXT_PUBLIC_CLARITY_ID:-}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        # MUST be a stable 32+ char secret, identical at build AND runtime.
+        # Mismatch causes auth_user cookie to be undecipherable → silent login failure.
+        NEXT_PUBLIC_COOKIE_SECRET: ${NEXT_PUBLIC_COOKIE_SECRET}
+        NEXT_PUBLIC_DEFAULT_BRANCH_ID: ${NEXT_PUBLIC_DEFAULT_BRANCH_ID}
     restart: unless-stopped
     expose:
       - "3000"
@@ -61,6 +65,8 @@ services:
       NEXT_PUBLIC_FB_PIXEL_ID: ${NEXT_PUBLIC_FB_PIXEL_ID:-}
       NEXT_PUBLIC_CLARITY_ID: ${NEXT_PUBLIC_CLARITY_ID:-}
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+      NEXT_PUBLIC_COOKIE_SECRET: ${NEXT_PUBLIC_COOKIE_SECRET}
+      NEXT_PUBLIC_DEFAULT_BRANCH_ID: ${NEXT_PUBLIC_DEFAULT_BRANCH_ID}
 
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]

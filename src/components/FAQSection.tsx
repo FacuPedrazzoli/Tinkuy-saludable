@@ -1,31 +1,27 @@
 'use client'
 
-import { faqs } from '@/data/faqs'
-import { useState, useCallback } from 'react'
+// TODO: wire to backend FAQ entity when available
+import { useState } from 'react'
+import { FAQ } from '@/types'
 
-export function FAQSection() {
+interface FAQSectionProps {
+  bare?: boolean
+  faqs?: FAQ[]
+}
+
+export function FAQSection({ bare = false, faqs = [] }: FAQSectionProps) {
   const [openId, setOpenId] = useState<string | null>(null)
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent, currentId: string) => {
-    const faqItems = faqs.slice(0, 4)
-    const currentIndex = faqItems.findIndex(f => f.id === currentId)
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      const nextIndex = (currentIndex + 1) % faqItems.length
-      setOpenId(faqItems[nextIndex].id)
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      const prevIndex = currentIndex === 0 ? faqItems.length - 1 : currentIndex - 1
-      setOpenId(faqItems[prevIndex].id)
-    }
-  }, [])
+  const visibleFaqs = faqs.slice(0, bare ? 6 : 4)
 
   return (
-    <section className="py-20 bg-cream-50/50">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 font-display mb-4">
+    <section className={bare ? 'h-full' : 'py-20 bg-cream-50/50'}>
+      <div className={bare ? 'flex h-full flex-col' : 'max-w-3xl mx-auto px-4 sm:px-6 lg:px-8'}>
+        <div className={bare ? 'mb-8' : 'text-center mb-12'}>
+          <h2
+            className={`font-bold text-neutral-900 font-display mb-4 ${
+              bare ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl'
+            }`}
+          >
             Preguntas Frecuentes
           </h2>
           <p className="text-neutral-500 text-lg">
@@ -33,46 +29,51 @@ export function FAQSection() {
           </p>
         </div>
 
-        <div className="space-y-4" role="region" aria-label="Preguntas frecuentes">
-          {faqs.slice(0, 4).map((faq) => (
-            <div
-              key={faq.id}
-              className="bg-white rounded-2xl border border-neutral-100 shadow-card overflow-hidden transition-all duration-300 hover:shadow-card-hover"
-            >
-              <h3 className="sr-only">{faq.question}</h3>
-              <button
-                onClick={() => setOpenId(openId === faq.id ? null : faq.id)}
-                onKeyDown={(e) => handleKeyDown(e, faq.id)}
-                className="w-full flex items-center justify-between p-6 text-left bg-white hover:bg-neutral-50 transition-colors duration-200"
-                aria-expanded={openId === faq.id}
-                aria-controls={`faq-answer-${faq.id}`}
+        {visibleFaqs.length === 0 ? (
+          <p className="text-neutral-400 text-center py-6">
+            No hay preguntas frecuentes disponibles aún.
+          </p>
+        ) : (
+          <div className="space-y-4" role="region" aria-label="Preguntas frecuentes">
+            {visibleFaqs.map((faq) => (
+              <div
+                key={faq.id}
+                className="bg-white rounded-2xl border border-neutral-100 shadow-card overflow-hidden transition-all duration-300 hover:shadow-card-hover"
               >
-                <span className="font-bold text-neutral-900 pr-6 text-base">{faq.question}</span>
-                <svg
-                  className={`w-6 h-6 text-secondary-400 flex-shrink-0 transition-all duration-300 ${
-                    openId === faq.id ? 'rotate-180' : ''
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
+                <h3 className="sr-only">{faq.question}</h3>
+                <button
+                  onClick={() => setOpenId(openId === faq.id ? null : faq.id)}
+                  className="w-full flex items-center justify-between p-6 text-left bg-white hover:bg-neutral-50 transition-colors duration-200"
+                  aria-expanded={openId === faq.id}
+                  aria-controls={`faq-answer-${faq.id}`}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {openId === faq.id && (
-                <div
-                  id={`faq-answer-${faq.id}`}
-                  className="px-6 pb-6 pt-2 text-neutral-600 leading-relaxed animate-slide-down"
-                >
-                  {faq.answer}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                  <span className="font-bold text-neutral-900 pr-6 text-base">{faq.question}</span>
+                  <svg
+                    className={`w-6 h-6 text-secondary-400 flex-shrink-0 transition-all duration-300 ${
+                      openId === faq.id ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {openId === faq.id && (
+                  <div
+                    id={`faq-answer-${faq.id}`}
+                    className="px-6 pb-6 pt-2 text-neutral-600 leading-relaxed animate-slide-down"
+                  >
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div className="text-center mt-10">
+        <div className={bare ? 'text-center mt-auto pt-10' : 'text-center mt-10'}>
           <a
             href="/faq"
             className="group inline-flex items-center gap-2 px-6 py-3 bg-white text-neutral-700 font-semibold rounded-xl border-2 border-neutral-200 hover:border-primary-300 hover:text-primary-600 transition-all duration-300 shadow-card hover:shadow-card-hover"

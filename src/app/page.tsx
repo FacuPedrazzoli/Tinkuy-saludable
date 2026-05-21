@@ -4,11 +4,18 @@ import { Hero } from '@/components/Hero'
 import { CategorySection } from '@/components/CategorySection'
 import { ProductGrid } from '@/components/ProductGrid'
 import { FAQSection } from '@/components/FAQSection'
-import { getFeaturedProducts } from '@/data/products'
+import { ShippingSection } from '@/components/ShippingSection'
 import { siteConfig } from '@/data/siteConfig'
 import { safeJsonStringify } from '@/lib/utils'
+import { serverQuery } from '@/lib/graphql/server-client'
+import { GET_PRODUCTS } from '@/lib/graphql/queries'
+import { GraphQLProductsResult } from '@/lib/graphql/types'
+import { adaptProduct } from '@/lib/graphql/adapters'
+import { Product } from '@/types'
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
+
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -69,8 +76,14 @@ const organizationSchema = {
 }
 
 export default async function HomePage() {
-  const featuredProducts = await getFeaturedProducts()
-  const displayedProducts = featuredProducts.slice(0, 8)
+  const data = await serverQuery<GraphQLProductsResult>(GET_PRODUCTS, {
+    isVisible: true,
+    first: 8,
+  })
+
+  const displayedProducts: Product[] = (data?.products?.edges ?? [])
+    .map(({ node }) => adaptProduct(node))
+    .slice(0, 8)
 
   const productSchema = displayedProducts.map((product) => ({
     '@context': 'https://schema.org',
@@ -82,17 +95,8 @@ export default async function HomePage() {
       '@type': 'Offer',
       price: String(product.price),
       priceCurrency: 'ARS',
-      availability: product.stock > 0
-        ? 'https://schema.org/InStock'
-        : 'https://schema.org/OutOfStock',
+      availability: 'https://schema.org/InStock',
     },
-    aggregateRating: product.rating > 0
-      ? {
-          '@type': 'AggregateRating',
-          ratingValue: product.rating,
-          reviewCount: product.reviews,
-        }
-      : undefined,
   }))
 
   return (
@@ -136,7 +140,13 @@ export default async function HomePage() {
               </svg>
             </Link>
           </div>
-          <ProductGrid products={displayedProducts} />
+          {displayedProducts.length > 0 ? (
+            <ProductGrid products={displayedProducts} />
+          ) : (
+            <p className="text-neutral-500 text-center py-12">
+              No hay productos disponibles en este momento.
+            </p>
+          )}
           <div className="text-center mt-12 sm:hidden">
             <Link
               href="/catalog"
@@ -148,7 +158,12 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <FAQSection />
+      <section className="py-20 bg-cream-50" aria-label="Envíos y preguntas frecuentes">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid gap-12 lg:gap-16 lg:grid-cols-2 items-stretch">
+          <ShippingSection bare />
+          <FAQSection bare />
+        </div>
+      </section>
     </>
   )
 }

@@ -88,13 +88,7 @@ const nextConfig = {
   },
 
   async redirects() {
-    return [
-      {
-        source: '/admin',
-        destination: '/admin/orders',
-        permanent: false,
-      },
-    ];
+    return [];
   },
 
   webpack: (config, { isServer }) => {

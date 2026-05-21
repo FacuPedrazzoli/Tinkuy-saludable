@@ -2,26 +2,34 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
-import { getAllProducts, getProductBySlug, getRelatedProducts } from '@/data/products'
 import { ProductActions } from '@/components/product/ProductActions'
 import { validateProductImage } from '@/lib/productImages'
 import { formatPrice, safeJsonStringify } from '@/lib/utils'
+import { serverQuery } from '@/lib/graphql/server-client'
+import { GET_PRODUCT_BY_SLUG, GET_PRODUCTS } from '@/lib/graphql/queries'
+import { GraphQLProductResult, GraphQLProductsResult } from '@/lib/graphql/types'
+import { adaptProduct } from '@/lib/graphql/adapters'
+import { Product } from '@/types'
 
-export const revalidate = 3600
+// Render dynamically — no build-time product data required
+export const dynamic = 'force-dynamic'
 
 interface ProductPageProps {
   params: { slug: string }
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
-  const product = await getProductBySlug(params.slug)
+  const data = await serverQuery<GraphQLProductResult>(GET_PRODUCT_BY_SLUG, {
+    slug: params.slug,
+  })
 
-  if (!product) {
-    return {
-      title: 'Producto no encontrado | Tinkuy',
-    }
+  const gqlProduct = data?.product ?? null
+
+  if (!gqlProduct) {
+    return { title: 'Producto no encontrado | Tinkuy' }
   }
 
+  const product = adaptProduct(gqlProduct)
   const productImage = validateProductImage(product.images[0], product.category, product.subcategory)
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
 
@@ -39,24 +47,31 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   }
 }
 
-export async function generateStaticParams() {
-  const products = await getAllProducts()
-  return products.map((product) => ({
-    slug: product.slug,
-  }))
-}
-
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://tinkuy-saludable-gamma.vercel.app'
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const product = await getProductBySlug(params.slug)
+  const data = await serverQuery<GraphQLProductResult>(GET_PRODUCT_BY_SLUG, {
+    slug: params.slug,
+  })
 
-  if (!product) {
+  const gqlProduct = data?.product ?? null
+
+  if (!gqlProduct) {
     notFound()
   }
 
-  const relatedProducts = await getRelatedProducts(product.id, product.category)
-  const displayedRelatedProducts = relatedProducts.slice(0, 4)
+  const product = adaptProduct(gqlProduct)
+
+  // Fetch related products from the same tags/category (best-effort — empty on error)
+  const relatedData = await serverQuery<GraphQLProductsResult>(GET_PRODUCTS, {
+    isVisible: true,
+    first: 5,
+  })
+
+  const relatedProducts: Product[] = (relatedData?.products?.edges ?? [])
+    .map(({ node }) => adaptProduct(node))
+    .filter((p) => p.id !== product.id)
+    .slice(0, 4)
 
   const productSchema = {
     '@context': 'https://schema.org',
@@ -64,27 +79,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
     name: product.name,
     description: product.shortDescription,
     image: product.images,
-    sku: product.id,
-    brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+    sku: gqlProduct.sku ?? product.id,
+    brand: undefined,
     offers: {
       '@type': 'Offer',
       price: String(product.price),
       priceCurrency: 'ARS',
-      availability: product.stock > 0
-        ? 'https://schema.org/InStock'
-        : 'https://schema.org/OutOfStock',
+      availability: 'https://schema.org/InStock',
       seller: {
         '@type': 'Organization',
         name: 'Tinkuy',
       },
     },
-    aggregateRating: product.rating > 0 ? {
-      '@type': 'AggregateRating',
-      ratingValue: product.rating,
-      reviewCount: product.reviews,
-      bestRating: 5,
-      worstRating: 1,
-    } : undefined,
     ...(product.category && { category: product.category }),
   }
 
@@ -232,13 +238,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
           </div>
 
-          {displayedRelatedProducts.length > 0 && (
+          {relatedProducts.length > 0 && (
             <div className="mt-12">
               <h2 className="text-2xl font-bold text-neutral-900 font-display mb-6">
                 Productos Relacionados
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {displayedRelatedProducts.map((relatedProduct) => {
+                {relatedProducts.map((relatedProduct) => {
                   const relatedImage = validateProductImage(
                     relatedProduct.images[0],
                     relatedProduct.category,

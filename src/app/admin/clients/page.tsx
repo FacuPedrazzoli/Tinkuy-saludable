@@ -11,10 +11,10 @@ interface Customer {
   email: string
   firstName: string
   lastName: string
-  phone?: string | null
+  phone: string | null
   totalOrders: number
   totalSpent: number
-  createdAt?: string
+  createdAt: string
 }
 
 function SkeletonRow() {
@@ -46,7 +46,7 @@ export default function AdminClientsPage() {
       setError('Error cargando clientes')
       setLoading(false)
     } else if (data?.customers) {
-      setClients(data.customers.edges.map(e => e.node))
+      setClients(data.customers)
       setLoading(false)
     }
   }, [data, gqlError])
@@ -54,7 +54,7 @@ export default function AdminClientsPage() {
   const sortedClients = useMemo(() => [...clients].sort((a, b) => {
     if (sortBy === 'spending') return (b.totalSpent || 0) - (a.totalSpent || 0)
     if (sortBy === 'orders') return (b.totalOrders || 0) - (a.totalOrders || 0)
-    return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   }), [clients, sortBy])
 
   const stats = useMemo(() => ({
@@ -239,7 +239,7 @@ export default function AdminClientsPage() {
                       </div>
                       <div className="text-center px-4 border-l border-neutral-200">
                         <p className="text-sm font-medium text-neutral-700">
-                          {client.createdAt ? new Date(client.createdAt).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' }) : '-'}
+                          {new Date(client.createdAt).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })}
                         </p>
                         <p className="text-xs text-neutral-500 dark:text-neutral-400">cliente desde</p>
                       </div>

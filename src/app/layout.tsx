@@ -99,7 +99,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" className={`${plusJakarta.variable} ${playfair.variable}`}>
+    <html lang="es" className={`${plusJakarta.variable} ${playfair.variable}`} suppressHydrationWarning>
       <body className="min-h-screen flex flex-col font-sans relative">
         <Providers>
           <a

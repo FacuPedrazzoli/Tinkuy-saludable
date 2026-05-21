@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, Suspense, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useQuery } from '@apollo/client/react'
 import { ProductGrid } from '@/components/ProductGrid'
 import { ProductGridSkeleton } from '@/components/ProductGridSkeleton'
 import { Product } from '@/types'
-import { GET_PRODUCTS, GET_TAGS } from '@/lib/graphql/queries'
+import { GET_PRODUCTS, GET_CATEGORIES } from '@/lib/graphql/queries'
+import { GraphQLCategoriesResult } from '@/lib/graphql/types'
 
 interface ProductNode {
   id: string
@@ -53,12 +54,6 @@ function CatalogContent() {
     is_keto: false,
   })
 
-  const filtersRef = useRef(filters)
-
-  useEffect(() => {
-    filtersRef.current = filters
-  }, [filters])
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search)
@@ -66,10 +61,14 @@ function CatalogContent() {
     return () => clearTimeout(timer)
   }, [search])
 
+  // Fetch categories from the real backend
+  const { data: categoriesData } = useQuery<GraphQLCategoriesResult>(GET_CATEGORIES)
+  const gqlCategories = (categoriesData?.categories ?? []).filter((c) => c.isActive)
+
   const { data: productsData, loading: gqlLoading, error: gqlError, refetch: refetchProducts } = useQuery<ProductsQueryResult>(GET_PRODUCTS, {
     variables: {
       search: debouncedSearch || undefined,
-      tagSlug: selectedCategory || undefined,
+      categoryId: selectedCategory || undefined,
       isVisible: true,
       first: 24,
     },
@@ -98,16 +97,17 @@ function CatalogContent() {
         ingredients: undefined,
         benefits: undefined,
         nutritionalInfo: undefined,
-        stock: 100,
-        rating: 4.5,
-        reviews: 10,
+        // stock/rating/reviews are not returned by the backend — use safe defaults
+        stock: 1,
+        rating: 0,
+        reviews: 0,
         featured: item.isFeatured || false,
         promo: undefined,
         brand: undefined,
-        organic: filtersRef.current.is_organic,
-        glutenFree: filtersRef.current.is_gluten_free,
-        vegan: filtersRef.current.is_vegan,
-        keto: filtersRef.current.is_keto,
+        organic: false,
+        glutenFree: false,
+        vegan: false,
+        keto: false,
         createdAt: new Date().toISOString(),
       }))
       setProducts(items)
@@ -116,7 +116,7 @@ function CatalogContent() {
       setLoading(false)
       setQueryError(null);
     }
-  }, [productsData, selectedCategory, filtersRef, gqlError])
+  }, [productsData, selectedCategory, gqlError])
 
   useEffect(() => {
     setLoading(gqlLoading)
@@ -147,26 +147,13 @@ function CatalogContent() {
             />
             <span className="text-neutral-700">Todas</span>
           </label>
-          {[
-            { slug: 'frutos-secos', name: 'Frutos Secos' },
-            { slug: 'semillas', name: 'Semillas' },
-            { slug: 'harinas', name: 'Harinas' },
-            { slug: 'proteinas', name: 'Proteínas' },
-            { slug: 'snacks', name: 'Snacks' },
-            { slug: 'sin-tacc', name: 'Sin TACC' },
-            { slug: 'keto', name: 'Keto' },
-            { slug: 'vegano', name: 'Vegano' },
-            { slug: 'endulzantes', name: 'Endulzantes' },
-            { slug: 'granolas', name: 'Granolas' },
-            { slug: 'infusiones', name: 'Infusiones' },
-            { slug: 'suplementos', name: 'Suplementos' },
-          ].map((cat) => (
-            <label key={cat.slug} className="flex items-center gap-2 cursor-pointer">
+          {gqlCategories.map((cat) => (
+            <label key={cat.id} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
                 name="category"
-                checked={selectedCategory === cat.slug}
-                onChange={() => handleCategoryChange(cat.slug)}
+                checked={selectedCategory === cat.id}
+                onChange={() => handleCategoryChange(cat.id)}
                 className="w-4 h-4 text-primary-600 border-neutral-300 focus:ring-primary-500"
               />
               <span className="text-neutral-700">{cat.name}</span>
@@ -197,7 +184,7 @@ function CatalogContent() {
         </div>
       </div>
     </div>
-  ), [selectedCategory, filters, handleCategoryChange])
+  ), [selectedCategory, filters, handleCategoryChange, gqlCategories])
 
   useEffect(() => {
     const params = new URLSearchParams()

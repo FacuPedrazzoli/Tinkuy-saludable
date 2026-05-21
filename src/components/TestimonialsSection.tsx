@@ -1,5 +1,7 @@
 'use client'
 
+// TODO: wire to backend testimonials/reviews entity when available
+
 interface Testimonial {
   id: string
   name: string
@@ -13,29 +15,9 @@ interface TestimonialsSectionProps {
 }
 
 export function TestimonialsSection({ testimonials = [] }: TestimonialsSectionProps) {
-  const defaultTestimonials: Testimonial[] = testimonials.length > 0 ? testimonials : [
-    {
-      id: '1',
-      name: 'María García',
-      text: 'Los mejores frutos secos que probé. Calidad excepcional y precios justos. Mi familia está encantada con la variedad.',
-      rating: 5,
-      avatar: 'MG',
-    },
-    {
-      id: '2',
-      name: 'Juan Pérez',
-      text: 'Desde que descubrí Tinkuy, no compro en otro lugar. La entrega fue rapidísima y todo llegó perfecto.',
-      rating: 5,
-      avatar: 'JP',
-    },
-    {
-      id: '3',
-      name: 'Ana Rodríguez',
-      text: 'Me encanta la atención al cliente y la calidad de los productos. 100% recomendado!',
-      rating: 5,
-      avatar: 'AR',
-    },
-  ]
+  if (testimonials.length === 0) {
+    return null
+  }
 
   return (
     <section className="py-20 bg-gradient-to-b from-cream-50 to-white overflow-hidden">
@@ -54,7 +36,7 @@ export function TestimonialsSection({ testimonials = [] }: TestimonialsSectionPr
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 lg:gap-8" role="list">
-          {defaultTestimonials.map((testimonial, index) => (
+          {testimonials.map((testimonial, index) => (
             <article
               key={testimonial.id}
               className="bg-white p-6 lg:p-8 rounded-2xl border border-neutral-100 shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"

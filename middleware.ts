@@ -14,7 +14,7 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = !!graphqlToken
 
   if (isAdminRoute && !isAuthenticated && !pathname.startsWith('/admin/login')) {
-    const loginUrl = new URL('/login', request.url)
+    const loginUrl = new URL('/admin/login', request.url)
     loginUrl.searchParams.set('returnUrl', pathname)
     return NextResponse.redirect(loginUrl)
   }

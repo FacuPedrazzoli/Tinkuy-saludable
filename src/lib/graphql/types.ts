@@ -184,3 +184,71 @@ export interface GraphQLCustomer {
 export interface GraphQLCustomersResult {
   customers: GraphQLConnection<GraphQLCustomer>
 }
+
+// ── Bulk import / price management ──────────────────────────────────────────
+
+export type InvoiceType = 'A' | 'B' | 'I' | 'NONE'
+export type ProductSaleUnit = 'KG' | 'UNIT'
+export type PriceUpdateMode = 'PERCENT_INCREASE' | 'FIXED_PRICE'
+
+/** Fields added to Product by the new contract */
+export interface GraphQLProductExtended extends GraphQLProduct {
+  invoiceType: InvoiceType | null
+  saleUnit: ProductSaleUnit | null
+  // derived read-only fields (server-computed)
+  clientKiloPrice: number | null
+  clientPrice500g: number | null
+  clientPrice250g: number | null
+  clientPrice100g: number | null
+  clientUnitPrice: number | null
+}
+
+export interface BulkProductInput {
+  name: string
+  category: string
+  supplier?: string
+  invoiceType?: InvoiceType
+  saleUnit: ProductSaleUnit
+  basePrice: number
+}
+
+export interface BulkImportError {
+  row: number
+  name: string | null
+  message: string
+}
+
+export interface BulkImportResult {
+  created: number
+  updated: number
+  skipped: number
+  errors: BulkImportError[]
+}
+
+export interface BulkPriceUpdateInput {
+  productIds: string[]
+  mode: PriceUpdateMode
+  value: number
+}
+
+export interface BulkPriceResult {
+  updated: number
+  errors: BulkImportError[]
+}
+
+export interface GraphQLSupplier {
+  id: string
+  name: string
+}
+
+export interface GraphQLSuppliersResult {
+  suppliers: GraphQLSupplier[]
+}
+
+export interface GraphQLBulkImportResult {
+  bulkImportProducts: BulkImportResult
+}
+
+export interface GraphQLBulkPriceResult {
+  bulkUpdateProductPrices: BulkPriceResult
+}

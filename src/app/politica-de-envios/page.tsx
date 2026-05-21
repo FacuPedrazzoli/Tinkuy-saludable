@@ -2,13 +2,13 @@ import { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Política de Envíos | Tinkuy',
-  description: 'Información sobre envíos, tiempos de entrega, costos y seguimiento de tu pedido en Tinkuy.',
+  description: 'Envíos por día a zona oeste de Buenos Aires. Envío gratis desde $20.000 en Haedo y zonas cercanas. Tu compra se confirma en 24 hs.',
   alternates: {
     canonical: '/politica-de-envios',
   },
   openGraph: {
     title: 'Política de Envíos | Tinkuy',
-    description: 'Información sobre envíos, tiempos de entrega y seguimiento.',
+    description: 'Envíos por día a zona oeste de Buenos Aires. Envío gratis desde $20.000 en Haedo y zonas cercanas.',
     type: 'website',
     locale: 'es_AR',
     url: '/politica-de-envios',
@@ -25,49 +25,52 @@ export default function ShippingPolicyPage() {
 
         <div className="bg-white rounded-2xl p-8 shadow-card space-y-8 text-neutral-600">
           <section>
-            <h2 className="text-xl font-semibold text-neutral-900 mb-4">1. Tiempo de Preparación</h2>
+            <h2 className="text-xl font-semibold text-neutral-900 mb-4">1. Confirmación del Pedido</h2>
             <p className="mb-4">
-              Los pedidos se preparan en un plazo de 24 a 48 horas hábiles. Una vez dispatched,
-              recibirás un email de confirmación con el número de seguimiento.
+              Tu compra se confirma luego de <strong>24 hs</strong>. En ese plazo
+              coordinamos y confirmamos el despacho de tu pedido por el canal que
+              dejaste al comprar.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-neutral-900 mb-4">2. Métodos de Envío</h2>
-            <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Mensajería express:</strong> Entrega en 24-48hs hábiles (CABA y GBA)</li>
-              <li><strong>Standard:</strong> Entrega en 3-5 días hábiles (resto del país)</li>
-              <li><strong>Retiro en punto de entrega:</strong> Disponible en OCA, Correo Argentino</li>
-            </ul>
+            <h2 className="text-xl font-semibold text-neutral-900 mb-4">2. Zona de Cobertura</h2>
+            <p className="mb-4">
+              Hacemos envíos por día a toda la <strong>zona oeste de Buenos Aires</strong>.
+              Coordinamos el día de entrega según tu localidad.
+            </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-neutral-900 mb-4">3. Costos de Envío</h2>
-            <div className="bg-neutral-50 rounded-xl p-4 mb-4">
-              <p className="font-medium text-neutral-900">Envío gratis:</p>
-              <p>En pedidos superiores a $25.000 dentro de CABA y GBA</p>
+            <div className="bg-primary-50 rounded-xl p-4 mb-4">
+              <p className="font-medium text-neutral-900">🚚 Envío GRATIS:</p>
+              <p>
+                En compras desde <strong>$20.000</strong> en Haedo y zonas cercanas
+                (Morón, Villa Luzuriaga, Villa Sarmiento, Ramos Mejía, El Palomar).
+              </p>
             </div>
-            <ul className="list-disc pl-6 space-y-2">
-              <li>CABA: Desde $1.500 (express) / $800 (standard)</li>
-              <li>GBA: Desde $2.000 (express) / $1.200 (standard)</li>
-              <li>Interior: Desde $2.500 según destino y peso</li>
-            </ul>
+            <p>
+              📦 Para otras localidades de la zona oeste, el costo del envío se
+              coordina según tu dirección. Consultanos antes de finalizar la compra.
+            </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-neutral-900 mb-4">4. Seguimiento</h2>
             <p>
-              Una vez dispatched tu pedido, recibirás un email con el link de seguimiento.
-              También puedes rastrear tu pedido desde la sección "Mis Pedidos" en tu cuenta.
+              El seguimiento de tu pedido se hace por el canal de comunicación que
+              dejaste al comprar. Te avisamos cuando confirmamos el despacho y
+              coordinamos la entrega directamente con vos por ese medio.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-neutral-900 mb-4">5. Envíos Fallidos</h2>
+            <h2 className="text-xl font-semibold text-neutral-900 mb-4">5. Entregas Fallidas</h2>
             <p>
-              Si el courier no puede entregar por dirección incorrecta o ausencia del receptor,
-              se dejará un aviso y se intentará nuevamente en 24-48hs. Pasados 2 intentos fallidos,
-              el pedido volverá a nuestro centro de distribución.
+              Si no podemos entregar por dirección incorrecta o ausencia del receptor,
+              reprogramamos la entrega para el siguiente día de reparto en tu zona.
+              Te contactamos para coordinar una nueva fecha.
             </p>
           </section>
 
@@ -75,8 +78,8 @@ export default function ShippingPolicyPage() {
             <h2 className="text-xl font-semibold text-neutral-900 mb-4">6. Contacto</h2>
             <p>
               Si tenés alguna consulta sobre tu envío, escribinos a{' '}
-              <a href="mailto:envios@tinkuy.com" className="text-primary-600 hover:underline">
-                envios@tinkuy.com
+              <a href="mailto:tinkuyalmacenaaludable@gmail.com" className="text-primary-600 hover:underline">
+                tinkuyalmacenaaludable@gmail.com
               </a>{' '}
               con tu número de pedido.
             </p>

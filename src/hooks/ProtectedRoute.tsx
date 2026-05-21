@@ -19,7 +19,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     if (isLoading) return
 
     if (!isAuthenticated) {
-      const redirectUrl = `/login?reason=session_expired&redirect=${encodeURIComponent(pathname)}`
+      const redirectUrl = `/admin/login?reason=session_expired&redirect=${encodeURIComponent(pathname)}`
       router.push(redirectUrl)
       return
     }
@@ -44,7 +44,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
       logoutTimeout = setTimeout(() => {
         setShowTimeoutWarning(false)
         logout()
-        router.push('/login?reason=session_expired')
+        router.push('/admin/login?reason=session_expired')
       }, timeoutMs + 60000)
     }
 

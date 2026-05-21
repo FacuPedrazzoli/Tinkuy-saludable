@@ -1,9 +1,18 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
-import { categories } from '@/data/categories'
+import { useQuery } from '@apollo/client/react'
+import { GET_CATEGORIES } from '@/lib/graphql/queries'
+import { GraphQLCategoriesResult, GraphQLCategory } from '@/lib/graphql/types'
 
 export function CategorySection() {
-  const featuredCategories = categories.slice(0, 6)
+  const { data, loading, error } = useQuery<GraphQLCategoriesResult>(GET_CATEGORIES)
+
+  const allCategories: GraphQLCategory[] = data?.categories ?? []
+  const featuredCategories = allCategories
+    .filter((c) => c.isActive)
+    .slice(0, 6)
 
   return (
     <section className="py-20 bg-white" aria-labelledby="categories-heading">
@@ -21,43 +30,63 @@ export function CategorySection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-5" role="list" aria-label="Categorías de productos">
-          {featuredCategories.map((category, index) => (
-            <Link
-              key={category.id}
-              href={`/catalog?category=${category.slug}`}
-              className="group relative"
-              role="listitem"
-              aria-label={`${category.name}, ${category.productCount} productos`}
-            >
-              <div className="relative aspect-square rounded-2xl overflow-hidden shadow-card group-hover:shadow-card-hover transition-all duration-500 group-hover:-translate-y-1">
-                <Image
-                  src={category.image}
-                  alt=""
-                  fill
-                  className="object-cover group-hover:scale-110 transition-transform duration-700"
-                  aria-hidden="true"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-70 group-hover:opacity-80 transition-opacity duration-300" />
+        {loading && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="aspect-square rounded-2xl bg-neutral-200 animate-pulse" />
+            ))}
+          </div>
+        )}
 
-                <div className="absolute inset-0 flex flex-col justify-end p-4">
-                  <h3 className="text-white font-bold text-sm lg:text-base leading-tight mb-0.5 drop-shadow-sm">
-                    {category.name}
-                  </h3>
-                  <p className="text-white/80 text-xs">
-                    {category.productCount} productos
-                  </p>
-                </div>
+        {!loading && featuredCategories.length === 0 && (
+          <p className="text-neutral-500 text-center py-8">
+            No hay categorías disponibles aún.
+          </p>
+        )}
 
-                <div className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-75 group-hover:scale-100">
-                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+        {!loading && featuredCategories.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-5" role="list" aria-label="Categorías de productos">
+            {featuredCategories.map((category) => (
+              <Link
+                key={category.id}
+                href={`/catalog?category=${category.slug}`}
+                className="group relative"
+                role="listitem"
+                aria-label={`${category.name}, ${category.productCount} productos`}
+              >
+                <div className="relative aspect-square rounded-2xl overflow-hidden shadow-card group-hover:shadow-card-hover transition-all duration-500 group-hover:-translate-y-1">
+                  {category.imageUrl ? (
+                    <Image
+                      src={category.imageUrl}
+                      alt=""
+                      fill
+                      className="object-cover group-hover:scale-110 transition-transform duration-700"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-neutral-200" aria-hidden="true" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-70 group-hover:opacity-80 transition-opacity duration-300" />
+
+                  <div className="absolute inset-0 flex flex-col justify-end p-4">
+                    <h3 className="text-white font-bold text-sm lg:text-base leading-tight mb-0.5 drop-shadow-sm">
+                      {category.name}
+                    </h3>
+                    <p className="text-white/80 text-xs">
+                      {category.productCount} productos
+                    </p>
+                  </div>
+
+                  <div className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 scale-75 group-hover:scale-100">
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div className="text-center mt-14">
           <Link

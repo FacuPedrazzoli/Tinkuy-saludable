@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useMutation } from '@apollo/client/react'
 import { ADMIN_LOGIN } from '@/lib/graphql/queries'
 import { encryptAuthCookie } from '@/lib/authCrypto'
+import { useAuth } from '@/hooks/useAuth'
 
 function setCookie(name: string, value: string, days: number = 7) {
   if (typeof document === 'undefined') return
@@ -18,10 +19,18 @@ function setCookie(name: string, value: string, days: number = 7) {
 
 export default function AdminLoginPage() {
   const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuth()
   const emailInputRef = useRef<HTMLInputElement>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  // Redirect already-authenticated users away from the login page
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace('/admin/orders')
+    }
+  }, [isAuthenticated, isLoading, router])
 
   const [adminLogin, { loading }] = useMutation(ADMIN_LOGIN)
 

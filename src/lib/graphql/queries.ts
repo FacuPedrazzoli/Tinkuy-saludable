@@ -36,8 +36,8 @@ export const PRODUCT_FRAGMENT = gql`
 `;
 
 export const GET_PRODUCTS = gql`
-  query GetProducts($search: String, $tagSlug: String, $isVisible: Boolean, $first: Int, $after: String) {
-    products(search: $search, tagSlug: $tagSlug, isVisible: $isVisible, first: $first, after: $after) {
+  query GetProducts($search: String, $categoryId: String, $tagSlug: String, $isVisible: Boolean, $first: Int, $after: String) {
+    products(search: $search, categoryId: $categoryId, tagSlug: $tagSlug, isVisible: $isVisible, first: $first, after: $after) {
       edges {
         node {
           ...ProductFields
@@ -56,6 +56,15 @@ export const GET_PRODUCTS = gql`
 export const GET_PRODUCT = gql`
   query GetProduct($id: String!) {
     product(id: $id) {
+      ...ProductFields
+    }
+  }
+  ${PRODUCT_FRAGMENT}
+`;
+
+export const GET_PRODUCT_BY_SLUG = gql`
+  query GetProductBySlug($slug: String!) {
+    product(slug: $slug) {
       ...ProductFields
     }
   }
@@ -357,6 +366,13 @@ export const ADMIN_PRODUCT_FRAGMENT = gql`
     isActive
     isVisible
     basePrice
+    invoiceType
+    saleUnit
+    clientKiloPrice
+    clientPrice500g
+    clientPrice250g
+    clientPrice100g
+    clientUnitPrice
     createdAt
     updatedAt
     variants {
@@ -383,8 +399,24 @@ export const ADMIN_PRODUCT_FRAGMENT = gql`
 `;
 
 export const GET_ADMIN_PRODUCTS = gql`
-  query GetAdminProducts($search: String, $tagSlug: String, $isVisible: Boolean, $first: Int, $after: String) {
-    products(search: $search, tagSlug: $tagSlug, isVisible: $isVisible, first: $first, after: $after) {
+  query GetAdminProducts(
+    $search: String
+    $tagSlug: String
+    $categoryId: String
+    $supplierId: String
+    $isVisible: Boolean
+    $first: Int
+    $after: String
+  ) {
+    products(
+      search: $search
+      tagSlug: $tagSlug
+      categoryId: $categoryId
+      supplierId: $supplierId
+      isVisible: $isVisible
+      first: $first
+      after: $after
+    ) {
       edges {
         node {
           ...AdminProductFields
@@ -625,6 +657,43 @@ export const CREATE_IMAGE = gql`
 export const DELETE_IMAGE = gql`
   mutation DeleteImage($id: String!) {
     deleteImage(id: $id)
+  }
+`;
+
+export const GET_SUPPLIERS = gql`
+  query GetSuppliers {
+    suppliers {
+      id
+      name
+    }
+  }
+`;
+
+export const BULK_IMPORT_PRODUCTS = gql`
+  mutation BulkImportProducts($input: [BulkProductInput!]!) {
+    bulkImportProducts(input: $input) {
+      created
+      updated
+      skipped
+      errors {
+        row
+        name
+        message
+      }
+    }
+  }
+`;
+
+export const BULK_UPDATE_PRODUCT_PRICES = gql`
+  mutation BulkUpdateProductPrices($input: BulkPriceUpdateInput!) {
+    bulkUpdateProductPrices(input: $input) {
+      updated
+      errors {
+        row
+        name
+        message
+      }
+    }
   }
 `;
 

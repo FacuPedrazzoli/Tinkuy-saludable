@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useRef, useState } from 'react'
-import { categories } from '@/data/categories'
+import { useRef } from 'react'
+import { useQuery } from '@apollo/client/react'
+import { GET_CATEGORIES } from '@/lib/graphql/queries'
+import { GraphQLCategoriesResult, GraphQLCategory } from '@/lib/graphql/types'
 import { cn } from '@/lib/utils'
 
 interface CategoryDropdownProps {
@@ -12,6 +14,11 @@ interface CategoryDropdownProps {
 
 export function CategoryDropdown({ isOpen, onOpenChange }: CategoryDropdownProps) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const { data } = useQuery<GraphQLCategoriesResult>(GET_CATEGORIES)
+  const categories: GraphQLCategory[] = (data?.categories ?? [])
+    .filter((c) => c.isActive)
+    .slice(0, 8)
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) {
@@ -62,7 +69,12 @@ export function CategoryDropdown({ isOpen, onOpenChange }: CategoryDropdownProps
             'absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-neutral-100 py-2 animate-slide-down'
           )}
         >
-          {categories.slice(0, 8).map((category) => (
+          {categories.length === 0 && (
+            <span className="block px-4 py-3 text-sm text-neutral-400">
+              No hay categorías disponibles
+            </span>
+          )}
+          {categories.map((category) => (
             <Link
               key={category.id}
               href={`/catalog?category=${category.slug}`}
